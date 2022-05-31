@@ -1,0 +1,42 @@
+#!/bin/bash
+
+source ~/.bashrc
+
+# Python environment
+
+source /datascope/slurm/miniconda3/bin/activate astro-tf
+
+# PFS related settings
+#export PYTHONPATH=.:../pysynphot:../SciScript-Python/py3
+export PFSSPEC_ROOT=~/project/pfsspec-all
+export ISOCHRONES_ROOT=~/project/pfs_isochrones
+export ISOCHRONES_DATA="/datascope/subaru/data/isochrones"
+export ISOCHRONES_TEST="/datascope/subaru/data/isochrones"
+export PYTHONPATH="$PFSSPEC_ROOT/python:$ISOCHRONES_ROOT/python:../pysynphot"
+
+# Other settings
+
+# Work around issues with saving weights when running on multiple threads
+export HDF5_USE_FILE_LOCKING=FALSE
+
+# Enable more cores for numexpr
+export NUMEXPR_MAX_THREADS=32
+
+cd $ISOCHRONES_ROOT
+
+echo "Creating env file for vscode development."
+
+cat > .env <<EOF
+CUDA_VISIBLE_DEVICES="1"
+PFSSPEC_ROOT="$PFSSPEC_ROOT"
+ISOCHRONES_ROOT="$ISOCHRONES_ROOT"
+ISOCHRONES_DATA="$ISOCHRONES_DATA"
+ISOCHRONES_TEST="$ISOCHRONES_TEST/temp/"
+PYTHONPATH="$PYTHONPATH"
+EOF
+
+echo "Configured environment for ISOCHRONES development."
+echo "Data directory is $ISOCHRONES_DATA"
+
+pushd .
+

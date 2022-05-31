@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./scripts/run "-m pfs.ga.isochrones.scripts.import" $@
