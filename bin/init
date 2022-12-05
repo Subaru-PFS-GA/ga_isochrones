@@ -7,9 +7,7 @@ source ~/.bashrc
 source /datascope/slurm/miniconda3/bin/activate astro-tf
 
 # PFS related settings
-#export PYTHONPATH=.:../pysynphot:../SciScript-Python/py3
-export PFSSPEC_ROOT=~/project/pfsspec-all
-export ISOCHRONES_ROOT=~/project/pfs_isochrones
+export ISOCHRONES_ROOT=~/project/ga_isochrones
 export ISOCHRONES_DATA="/datascope/subaru/data/isochrones"
 export ISOCHRONES_TEST="/datascope/subaru/data/isochrones"
 export PYTHONPATH="$PFSSPEC_ROOT/python:$ISOCHRONES_ROOT/python:../pysynphot"
