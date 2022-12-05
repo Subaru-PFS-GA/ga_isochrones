@@ -9,8 +9,8 @@ import numpy as np
 from tqdm import tqdm
 
 from .script import Script
-from ..io import GalaxiaReader
 from ..io import DartmouthReader
+from ..io import MistReader
 from ..util.data import *
 
 class Import(Script):
@@ -19,8 +19,8 @@ class Import(Script):
     """
 
     MODES = {
-        'galaxia': GalaxiaReader, 
-        'dartmouth': DartmouthReader
+        'dartmouth': DartmouthReader,
+        'mist': MistReader
     }
 
     def __init__(self):
