@@ -1,35 +1,73 @@
 #!/bin/bash
 
-source ~/.bashrc
+# Verify if file is being sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "The init script must be sourced!"
+    exit
+fi
 
-# Python environment
+if [ -f "~/.bashrc" ]; then
+    echo "Sourcing .bashrc"
+    source ~/.bashrc
+fi
 
-source /datascope/slurm/miniconda3/bin/activate astro-tf
+# Parse arguments
 
-# PFS related settings
-export ISOCHRONES_ROOT=~/project/ga_isochrones
-export ISOCHRONES_DATA="/datascope/subaru/data/isochrones"
-export ISOCHRONES_TEST="/datascope/subaru/data/isochrones"
-export PYTHONPATH="$PFSSPEC_ROOT/python:$ISOCHRONES_ROOT/python:../pysynphot"
+PARAMS=""
+ISOCHRONES_ENV="default"
 
-# Other settings
+while (( "$#" )); do
+    case "$1" in
+      -e|--env)
+        ISOCHRONES_ENV="$2"
+        shift 2
+        ;;
+      --) # end argument parsing
+        shift
+        break
+        ;;
+      *) # preserve all other arguments
+        PARAMS="$PARAMS $1"
+        shift
+        ;;
+    esac
+done
+
+# Source environment configs
+
+if [[ -f "./configs/envs/$ISOCHRONES_ENV" ]]; then
+    echo "Sourcing environment file $ISOCHRONES_ENV"
+    source "./configs/envs/$ISOCHRONES_ENV"
+else
+    echo "Environment file for $ISOCHRONES_ENV not found. "
+    exit 1
+fi
+
+# Activate conda environment
+
+echo "Activating conda environment $ISOCHRONES_CONDAENV"
+source "$ISOCHRONES_CONDAPATH/bin/activate" "$ISOCHRONES_CONDAENV"
+
+# Additional settings
 
 # Work around issues with saving weights when running on multiple threads
 export HDF5_USE_FILE_LOCKING=FALSE
 
-# Enable more cores for numexpr
-export NUMEXPR_MAX_THREADS=32
+# Disable tensorflow deprecation warnings
+export TF_CPP_MIN_LOG_LEVEL=3
+
+export PYTHONPATH="./python:./test:$PYTHONPATH"
 
 cd $ISOCHRONES_ROOT
 
-echo "Creating env file for vscode development."
+echo "Creating .env file for vscode development."
 
 cat > .env <<EOF
 CUDA_VISIBLE_DEVICES="1"
 PFSSPEC_ROOT="$PFSSPEC_ROOT"
 ISOCHRONES_ROOT="$ISOCHRONES_ROOT"
 ISOCHRONES_DATA="$ISOCHRONES_DATA"
-ISOCHRONES_TEST="$ISOCHRONES_TEST/temp/"
+ISOCHRONES_TEST="$ISOCHRONES_TEST"
 PYTHONPATH="$PYTHONPATH"
 EOF
 
@@ -37,4 +75,3 @@ echo "Configured environment for ISOCHRONES development."
 echo "Data directory is $ISOCHRONES_DATA"
 
 pushd .
-

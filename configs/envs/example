@@ -1,0 +1,8 @@
+export ISOCHRONES_CONDAPATH="/usr/local/miniconda3"
+export ISOCHRONES_CONDAENV="isochrones"
+export ISOCHRONES_ROOT=~/project/ga_isochrones
+export ISOCHRONES_DATA=~/data/isochrones
+export ISOCHRONES_TEST=~/data/isochrones/test
+export PFSSPEC_ROOT=~/project/ga_pfsspec_all
+
+export PYTHONPATH="$PYTHONPATH"
