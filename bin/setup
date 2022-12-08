@@ -1,0 +1,315 @@
+#!/usr/bin/env python
+
+# This script generates the necessary config files to install the package
+# using setuptools, pip and conda.
+# For testing pip installation, create a user conda environment and activate it
+# with the commands:
+# $ CONDA_PKGS_DIRS=~/temp/pkgs conda create --prefix ~/envs/setuptest python=3
+# $ conda activate ~/envs/setuptest
+
+# ### Package constants
+
+PACKAGE_NAME = 'pfs-isochrones'             # name of package
+PACKAGE_NAMESPACE = 'pfs/ga/isochrones'     # path to first non-namespace folder
+PACKAGE_FOLDER_PATH = './python'            # path to python source root
+PACKAGE_COMMAND_PREFIX = 'pfsiso'           # prefix to command-line executables
+PACKAGE_DEPENDS = [
+    ['tqdm', '>=4.42.1'],
+    ['numpy', '>=1.18.5'],
+    ['pandas', '>=1.0.1'],
+    ['h5py', '>=2.10.0'],
+    ['matplotlib', '>=3.1.3'],
+    ['scipy', '>=1.5.3'],
+    ['tensorflow', '>=2.4']
+]
+
+# ### End packaga constants
+
+import os
+import re
+import glob
+import shutil
+import subprocess
+import argparse
+import logging
+from collections.abc import Iterable
+
+logging.basicConfig(level=logging.INFO)
+
+PARSER_COMMAND = 'command'
+
+COMMAND_CONFIGURE = 'configure'
+COMMAND_CLEAN = 'clean'
+COMMAND_CONDA_BUILD = 'conda-build'
+COMMAND_PIP_INSTALL = 'pip-install'
+
+ARG_NEXT_VERSION = '--next-version'
+ARG_BUILD_NUMBER = '--build-number'
+ARG_PACKAGE_FOLDER = '--package-folder'
+ARG_OUTPUT_FOLDER = '--output-folder'
+
+ENV_CONDA_PKGS_DIRS = 'CONDA_PKGS_DIRS'
+
+def add_args(parser: argparse.ArgumentParser):
+    sps = parser.add_subparsers(dest=PARSER_COMMAND, required=True)
+    pp = []
+
+    p = sps.add_parser(COMMAND_CONFIGURE)
+    pp.append(p)
+
+    p = sps.add_parser(COMMAND_CLEAN)
+    pp.append(p)
+    p.add_argument(ARG_PACKAGE_FOLDER, type=str, help='Override package folder.')
+    p.add_argument(ARG_OUTPUT_FOLDER, type=str, help='Override output folder.')
+
+    p = sps.add_parser(COMMAND_CONDA_BUILD)
+    pp.append(p)
+    p.add_argument(ARG_PACKAGE_FOLDER, type=str, help='Override package folder.')
+    p.add_argument(ARG_OUTPUT_FOLDER, type=str, help='Override output folder.')
+
+    for p in pp:
+        p.add_argument(ARG_NEXT_VERSION, type=str, help='Override next version.')
+        p.add_argument(ARG_BUILD_NUMBER, type=int, help='Override build number.')
+
+def get_default(default=None):
+    if isinstance(default, str):
+        return default
+    elif isinstance(default, Iterable):
+        for d in default:
+            if d is not None:
+                return d
+        return None
+    else:
+        return default
+    
+def arg_name_to_key(name):
+    return name.replace('-', '_').strip('_')
+
+def is_arg(args, name):
+    key = arg_name_to_key(name)
+    return key in args and args[key] is not None
+
+def get_arg(args, name, default=None):
+    key = arg_name_to_key(name)
+    return args[key] if key in args and args[key] is not None else get_default(default)
+
+def is_env(key):
+    return key in os.environ
+
+def get_env(key, default=None):
+    return os.environ[key] if key in os.environ and os.environ[key] is not None else get_default(default)
+
+def set_env(key, value):
+    os.environ[key] = value
+
+def shell(command):
+    logging.info('Executing shell command `{}`'.format(command))
+    with os.popen(command) as p:
+        return p.read()
+
+def run(command):
+    logging.info('Running command `{}`'.format(command))
+    subprocess.run(command.split(' '))
+
+def git_get_current_tag():
+    # Tag name is assumed to be vX.X.X
+    return shell("git describe --abbrev=0 --tags --match 'v*.*.*'").strip()
+
+def git_get_commits_since(*version):
+    tag = format_tag(*version)
+    return int(shell(f"git rev-list {tag}..HEAD --count").strip())
+
+def split_version(tag):
+    # Tag name is assumed to be vX.X.X, only return X.X.X as a tuple of numbers
+    return tuple(int(p) for p in tag[1:].split('.'))
+
+def format_tag(*version):
+    return 'v' + format_version(*version)
+
+def format_version(*version):
+    return '.'.join([ str(i) for i in version ])
+
+def cp(input_file, output_file):
+    shutil.copy2(input_file, output_file)
+
+def mkdir(dir):
+    if not os.path.isdir(dir):
+        os.makedirs(dir, exist_ok=True)
+        logging.info("Created directory `{}`".format(dir))
+    else:
+        logging.info("Found existing directory `{}`".format(dir))
+
+def rmdir(dir):
+    try:
+        shutil.rmtree(dir)
+        logging.info("Removed directory `{}`".format(dir))
+    except:
+        logging.info("Failed to remove directory `{}`".format(dir))
+
+def sed(patterns, input_file, output_file):
+    with open(input_file) as f:
+        lines = f.read()
+
+    for (p, r) in patterns:
+        lines = lines.replace(p, r)
+
+    with open(output_file, 'w') as f:
+        f.write(lines)
+
+def get_excludes():
+    excl = [ 'test' ]
+
+    # Generate a list of excluded packages (namespace directories)
+    parts = PACKAGE_NAMESPACE.split('/')[:-1]
+    for i in range(len(parts)):
+        excl.append('/'.join(parts[:i + 1]))
+
+    return excl
+
+def format_excludes_cfg(excl):
+    cfg = ''
+    for e in excl:
+        cfg += '    {}\n'.format(e)
+    return cfg
+
+def format_dependencies(dep, indent=''):
+    cfg = ''
+    for d in dep:
+        cfg += '{}{}'.format(indent, d[0])
+        cfg += ' ' + ','.join(d[1:])
+        cfg += '\n'
+    return cfg
+
+def get_versions(args, unknown_args):
+    tag = git_get_current_tag()
+    version = split_version(tag)
+    build = git_get_commits_since(*version[:2], 0) + 1
+
+    # Override from args
+    build = get_arg(args, ARG_BUILD_NUMBER, build)
+
+    # Override from args
+    if is_arg(args, ARG_NEXT_VERSION):
+        next_version = split_version(get_arg(args, ARG_NEXT_VERSION))
+    else:
+        next_version = version[:2] + (build,)
+    
+    logging.info(f'Current version: {tag} (from last git tag)')
+    logging.info(f'Next version: {format_tag(*next_version)}')
+    logging.info(f'Build number: {build}')
+
+    return tag, next_version, build
+
+def find_console_scripts():
+    console_scripts = []
+    for fn in glob.glob(os.path.join(PACKAGE_FOLDER_PATH, PACKAGE_NAMESPACE, 'scripts/*.py')):
+        with open(fn, encoding="utf-8") as f:
+            if f.readline().startswith("#!/usr/bin/env python3"):
+                cls = os.path.splitext(os.path.split(fn)[1])[0]
+                cmd = cls.replace('_', '')
+                logging.info('Found entrypoint `{}`.'.format(cls))
+
+                console_scripts.append('{}-{} = {}.scripts.{}:main'.format(PACKAGE_COMMAND_PREFIX, cmd, PACKAGE_NAMESPACE.replace('/', '.'), cls))
+
+    if len(console_scripts) == 0:
+        logging.info('No command-line entrypoints founds.')
+
+    return console_scripts
+
+def format_console_scripts(console_scripts):
+    cmd = ''
+    for s in console_scripts:
+        cmd += '    {}\n'.format(s)
+    return cmd
+
+def generate_config(version, build):
+    logging.info('Generating setup configuration files.')
+
+    excl = get_excludes()
+    cmd = find_console_scripts()
+
+    patterns = (
+        ('%%version%%', format_version(*version)),
+        ('%%build%%', str(build)),
+        ('%%excludes_cfg%%', format_excludes_cfg(excl)),
+        ('%%requirements_txt%%', format_dependencies(PACKAGE_DEPENDS)),
+        ('%%requirements_yaml%%', format_dependencies(PACKAGE_DEPENDS, indent='        - ')),
+        ('%%requirements_cfg%%', format_dependencies(PACKAGE_DEPENDS, indent='    ')),
+        ('%%console_scripts%%', format_console_scripts(cmd))
+    )
+    
+    sed(patterns, './assets/build/_version.py', f'./python/{PACKAGE_NAMESPACE}/_version.py')
+    logging.info('Generated _version.py')
+
+    sed(patterns, './assets/build/_meta.yaml', './recipe/meta.yaml')
+    logging.info('Generated meta.yaml')
+
+    cp('./assets/build/_conda_build_config.yaml', './recipe/conda_build_config.yaml')
+    logging.info('Copied conda_build_config.yaml')
+
+    sed(patterns, './assets/build/_setup.cfg', './setup.cfg')
+    logging.info('Generated setup.cfg')
+
+    sed(patterns, './assets/build/_setup.py', './setup.py')
+    logging.info('Generated setup.py')
+
+    sed(patterns, './assets/build/_requirements.txt', './requirements.txt')
+    logging.info('Copied requirements.txt')
+
+def configure(args, unknown_args):
+    logging.info('Executing setup command `configure`.')
+
+    tag, next_version, build = get_versions(args, unknown_args)
+
+    generate_config(next_version, build)
+
+def clean(args, unknown_args):
+    logging.info('Executing setup command `clean`.')
+
+    package_folder = get_arg(args, ARG_PACKAGE_FOLDER, [get_env(ENV_CONDA_PKGS_DIRS), './build/pkgs'])
+    output_folder = get_arg(args, ARG_OUTPUT_FOLDER, f'./build/{PACKAGE_NAME}')
+
+    rmdir(package_folder)
+    rmdir(output_folder)
+    rmdir('./.eggs')
+    rmdir(f'./python/{PACKAGE_NAME.replace("-", "_")}.egg-info')
+    rmdir('./build')
+    rmdir('./dist')
+    rmdir('./temp')
+    
+def conda_build(args, unknown_args):
+    logging.info('Executing setup command `conda-build`.')
+
+    tag, next_version, build = get_versions(args, unknown_args)
+
+    package_folder = get_arg(args, ARG_PACKAGE_FOLDER, [get_env(ENV_CONDA_PKGS_DIRS), './build/pkgs'])
+    output_folder = get_arg(args, ARG_OUTPUT_FOLDER, f'./build/{PACKAGE_NAME}')
+
+    generate_config(next_version, build)
+
+    mkdir(package_folder)
+    mkdir(output_folder)
+
+    set_env(ENV_CONDA_PKGS_DIRS, package_folder)
+    cmd = f'conda build {ARG_OUTPUT_FOLDER} {output_folder} ' + ' '.join(unknown_args)
+    run(cmd)
+
+def main():
+    parser = argparse.ArgumentParser()
+    add_args(parser)
+    args, unknown_args = parser.parse_known_args()
+    args = args.__dict__
+
+    if args[PARSER_COMMAND] == COMMAND_CONFIGURE:
+        configure(args, unknown_args)
+    elif args[PARSER_COMMAND] == COMMAND_CLEAN:
+        clean(args, unknown_args)
+    elif args[PARSER_COMMAND] == COMMAND_CONDA_BUILD:
+        conda_build(args, unknown_args)
+    elif args[PARSER_COMMAND] == COMMAND_PIP_INSTALL:
+        raise NotImplementedError()
+    else:
+        raise NotImplementedError()
+
+if __name__ == "__main__":
+    main()

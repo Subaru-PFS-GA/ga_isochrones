@@ -1,0 +1,28 @@
+package:
+    name: pfs-isochrones
+    version: %%version%%
+
+source:
+    path: ../
+
+build:
+    noarch: python
+    number: %%build%%
+    script: python -m pip install --no-deps --ignore-installed .
+    entry_points:
+        - pfsiso-import = pfs.ga.isochrones.scripts.import_:main
+        - pfsiso-synthmag = pfs.ga.isochrones.scripts.synthmag:main
+
+requirements:
+    build:
+        - python >=3.7
+        - setuptools >=65.0.2
+        - setuptools_scm[toml]>=4
+        - pip >=22.0
+
+    run:
+%%requirements_yaml%%
+
+about:
+    home: https://github.com/Subaru-PFS-GA/ga_isochrones
+    license: NO LICENSE - DO NOT DISTRIBUTE
