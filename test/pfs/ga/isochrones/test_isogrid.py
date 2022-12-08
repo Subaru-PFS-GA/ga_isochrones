@@ -96,11 +96,10 @@ class TestIsoGrid(TestBase):
         lo_EEP, hi_EEP = grid._bracket_EEP()
 
         [lo_M_ini] = grid._interp3d_EEP(Fe_H, log_t, lo_EEP + 0.01, [grid.M_ini])
-        [hi_M_ini] = grid._interp3d_EEP(Fe_H, log_t, hi_EEP, [grid.M_ini])
+        [hi_M_ini] = grid._interp3d_EEP(Fe_H, log_t, hi_EEP - 0.01, [grid.M_ini])
 
         self.assertEqual(0, tf.reduce_sum(tf.cast(tf.math.is_nan(lo_M_ini), dtype=tf.int32)))
         self.assertEqual(0, tf.reduce_sum(tf.cast(tf.math.is_nan(hi_M_ini), dtype=tf.int32)))
-    
 
     def test_interp3d(self):
         def interp3d(shape):

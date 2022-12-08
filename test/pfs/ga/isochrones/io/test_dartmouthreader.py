@@ -8,40 +8,51 @@ from pfs.ga.isochrones import Dartmouth
 from pfs.ga.isochrones.io import DartmouthReader
 
 class TestDartmouthReader(TestBase):
-    def _create_grid(self):
-        grid = Dartmouth()
-        grid._input_path = os.path.join(self.ISOCHRONES_DATA, 'isochrones/dartmouth/isochrones/SDSSugriz/')
-        return grid
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass(cls)
+
+        os.makedirs(cls.ISOCHRONES_TEST, exist_ok=True)
+
+    def _create_reader(self):
+        reader = DartmouthReader()
+        reader._in = os.path.join(self.ISOCHRONES_DATA, 'dartmouth/source/isochrones')
+        return reader
 
     def test_read_file(self):
-        grid = self._create_grid()
-        df = grid._read_dartmouth('p00', 'p0', '')
-        self.assertEqual((371073, 14), df.shape)
+        reader = self._create_reader()
+        df = reader._read_file('p00', 'p0', '', photometry='SDSSugriz')
+        self.assertEqual((10029, 14), df.shape)
+        self.assertEqual(2, df['EEP'].min())
+        self.assertEqual(279, df['EEP'].max())
 
     def test_read_all(self):
-        grid = self._create_grid()
+        reader = self._create_reader()
 
-        dartmouth = grid._read_all('p0', '', read_young=True)
+        dartmouth = reader._read_all('p0', '', photometry='SDSSugriz', read_young=True)
         self.assertEqual(9, len(dartmouth))
-        self.assertEqual((447483, 14), dartmouth['p00'].shape)
+        self.assertEqual((14845, 14), dartmouth['p00'].shape)
 
-        dartmouth = grid._read_all('p0', '', read_young=False)
+        dartmouth = reader._read_all('p0', '', photometry='SDSSugriz', read_young=False)
         self.assertEqual(9, len(dartmouth))
-        self.assertEqual((371073, 14), dartmouth['p00'].shape)
+        self.assertEqual((10029, 14), dartmouth['p00'].shape)
 
     def test_build_grid(self):
-        grid = self._create_grid()
+        reader = self._create_reader()
+        reader._grid = Dartmouth()
         
-        dartmouth = grid._read_all('p0', '', read_young=True)
+        dartmouth = reader._read_all('p0', '', photometry='SDSSugriz', read_young=True)
         self.assertEqual(9, len(dartmouth))
-        self.assertEqual((447483, 14), dartmouth['p00'].shape)
+        self.assertEqual((14845, 14), dartmouth['p00'].shape)
 
-        grid._build_grid(dartmouth)
-
-        grid.save('/scratch/ceph/dobos/data/isochrones/dartmouth/test/dartmouth_sdss.h5')
+        reader._build_grid(dartmouth, photometry='SDSSugriz')
+        fn = os.path.join(self.ISOCHRONES_TEST, 'dartmouth_sdss.h5')
+        reader._grid.save(os.path.join(self.ISOCHRONES_TEST, 'dartmouth_sdss.h5'))
 
     def test_convert_to_hsc(self):
         grid = Dartmouth()
-        grid.load('/scratch/ceph/dobos/data/isochrones/dartmouth/test/dartmouth_sdss.h5', format='np')
-        grid._convert_to_hsc()
-        grid.save('/scratch/ceph/dobos/data/isochrones/dartmouth/test/dartmouth_hsc.h5')
+        grid.load(os.path.join(self.ISOCHRONES_TEST, 'dartmouth_sdss.h5'), format='np')
+        
+        reader = self._create_reader()
+        reader.convert_to_hsc(grid)
+        grid.save(os.path.join(self.ISOCHRONES_TEST, 'dartmouth_hsc.h5'))
