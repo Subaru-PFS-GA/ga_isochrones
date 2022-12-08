@@ -1,13 +1,13 @@
 package:
     name: pfs-isochrones
-    version: 0.1.3
+    version: 0.1.6
 
 source:
     path: ../
 
 build:
     noarch: python
-    number: 3
+    number: 6
     script: python -m pip install --no-deps --ignore-installed .
     entry_points:
         - pfsiso-import = pfs.ga.isochrones.scripts.import_:main
