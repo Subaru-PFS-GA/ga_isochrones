@@ -119,6 +119,10 @@ def git_get_commits_since(*version):
     tag = format_tag(*version)
     return int(shell(f"git rev-list {tag}..HEAD --count").strip())
 
+def git_is_dirty():
+    res = shell("git status --porcelain --untracked-files=no")
+    return res != ''
+
 def split_version(tag):
     # Tag name is assumed to be vX.X.X, only return X.X.X as a tuple of numbers
     return tuple(int(p) for p in tag[1:].split('.'))
@@ -183,7 +187,11 @@ def format_dependencies(dep, indent=''):
 def get_versions(args, unknown_args):
     tag = git_get_current_tag()
     version = split_version(tag)
-    build = git_get_commits_since(*version[:2], 0) + 1
+    build = git_get_commits_since(*version[:2], 0)
+    
+    if git_is_dirty():
+        build += 1
+        logging.info(f'Git repo is dirty, bumping build number by one to {build}.')
 
     # Override from args
     build = get_arg(args, ARG_BUILD_NUMBER, build)
