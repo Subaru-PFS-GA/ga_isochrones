@@ -1,17 +1,18 @@
 package:
     name: pfs-isochrones
-    version: 0.1.6
+    version: 0.1.14
 
 source:
     path: ../
 
 build:
     noarch: python
-    number: 6
+    number: 14
     script: python -m pip install --no-deps --ignore-installed .
     entry_points:
-        - pfsiso-import = pfs.ga.isochrones.scripts.import_:main
         - pfsiso-synthmag = pfs.ga.isochrones.scripts.synthmag:main
+        - pfsiso-import = pfs.ga.isochrones.scripts.import_:main
+
 
 requirements:
     build:

@@ -10,6 +10,8 @@
 # ### Package constants
 
 PACKAGE_NAME = 'pfs-isochrones'             # name of package
+PACKAGE_URL = 'https://github.com/Subaru-PFS-GA/ga_isochrones'
+PACKAGE_DESCRIPTION = 'A isochrone interpolation library for GPUs.'
 PACKAGE_NAMESPACE = 'pfs/ga/isochrones'     # path to first non-namespace folder
 PACKAGE_FOLDER_PATH = './python'            # path to python source root
 PACKAGE_COMMAND_PREFIX = 'pfsiso'           # prefix to command-line executables
@@ -224,7 +226,13 @@ def find_console_scripts():
 
     return console_scripts
 
-def format_console_scripts(console_scripts):
+def format_console_scripts_yaml(console_scripts):
+    cmd = ''
+    for s in console_scripts:
+        cmd += '        - {}\n'.format(s)
+    return cmd
+
+def format_console_scripts_cfg(console_scripts):
     cmd = ''
     for s in console_scripts:
         cmd += '    {}\n'.format(s)
@@ -237,13 +245,17 @@ def generate_config(version, build):
     cmd = find_console_scripts()
 
     patterns = (
+        ('%%package_name%%', PACKAGE_NAME),
+        ('%%package_url%%', PACKAGE_URL),
+        ('%%package_description%%', PACKAGE_DESCRIPTION),
         ('%%version%%', format_version(*version)),
         ('%%build%%', str(build)),
         ('%%excludes_cfg%%', format_excludes_cfg(excl)),
         ('%%requirements_txt%%', format_dependencies(PACKAGE_DEPENDS)),
         ('%%requirements_yaml%%', format_dependencies(PACKAGE_DEPENDS, indent='        - ')),
         ('%%requirements_cfg%%', format_dependencies(PACKAGE_DEPENDS, indent='    ')),
-        ('%%console_scripts%%', format_console_scripts(cmd))
+        ('%%console_scripts_yaml%%', format_console_scripts_yaml(cmd)),
+        ('%%console_scripts_cfg%%', format_console_scripts_cfg(cmd)),
     )
     
     sed(patterns, './assets/build/_version.py', f'./python/{PACKAGE_NAMESPACE}/_version.py')
