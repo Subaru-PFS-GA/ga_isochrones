@@ -48,6 +48,12 @@ fi
 echo "Activating conda environment $ISOCHRONES_CONDAENV"
 source "$ISOCHRONES_CONDAPATH/bin/activate" "$ISOCHRONES_CONDAENV"
 
+# Configure git filter to remove notebook output
+# `nb/**/*.ipynb filter=ipynb_stripout`
+git config --local filter.ipynb_stripout.clean "$(which python) $(git rev-parse --show-toplevel)/bin/ipynb_stripout"
+git config --local filter.ipynb_stripout.smudge cat
+git config --local filter.ipynb_stripout.required true
+
 # Additional settings
 
 # Work around issues with saving weights when running on multiple threads
@@ -56,7 +62,7 @@ export HDF5_USE_FILE_LOCKING=FALSE
 # Disable tensorflow deprecation warnings
 export TF_CPP_MIN_LOG_LEVEL=3
 
-export PYTHONPATH="./python:./test:$PYTHONPATH"
+export PYTHONPATH="$(realpath ./python):$(realpath ./test):$PYTHONPATH"
 
 cd $ISOCHRONES_ROOT
 
