@@ -8,21 +8,21 @@ from itertools import permutations
 import re
 import logging
 
-from pfs.ga.isochrones.dartmouth import Dartmouth
+from ..dartmouth import Dartmouth
 from ..util.astro import *
 from ..util.data import *
+from .isogridreader import IsoGridReader
 
-class DartmouthReader():
-    @staticmethod
-    def convert_to_hsc(grid):
-        # Temporarily ignore floating point errors to deal with nans in source arrays
-        with np.errstate(all="ignore"):
-            hsc_g, hsc_i = sdss_to_hsc(grid._values['sdss_g'], grid._values['sdss_r'],
-                                    grid._values['sdss_i'], grid._values['sdss_z'])
+def convert_to_hsc(grid):
+    # Temporarily ignore floating point errors to deal with nans in source arrays
+    with np.errstate(all="ignore"):
+        hsc_g, hsc_i = sdss_to_hsc(grid._values['sdss_g'], grid._values['sdss_r'],
+                                grid._values['sdss_i'], grid._values['sdss_z'])
 
-        grid._values['hsc_g'] = hsc_g
-        grid._values['hsc_i'] = hsc_i
+    grid._values['hsc_g'] = hsc_g
+    grid._values['hsc_i'] = hsc_i
 
+class DartmouthReader(IsoGridReader):
     PHOTOMETRY = {
         'SDSSugriz': {
             'source': [ 'sdss_u', 'sdss_g', 'sdss_r', 'sdss_i', 'sdss_z' ],
@@ -33,7 +33,7 @@ class DartmouthReader():
             'dest': [ 'cfht_u', 'cfht_g', 'cfht_r', 'cfht_i', None ]
         },
         'HSC': {
-            'conversion': convert_to_hsc.__func__,
+            'conversion': convert_to_hsc,
             'dest': [ 'hsc_g', 'hsc_i' ]
         },
         'PanSTARRS': {
@@ -74,52 +74,29 @@ class DartmouthReader():
     }
 
     def __init__(self):
+        super().__init__()
+
         self._file_pattern = 'feh{}afe{}{}.{}{}'     # Fe_H, A, Y, photometry, postfix
 
-        self._in = None
-        self._out = None
-        self._photometry = None
         self._alpha = 'p0'
         self._helium = ''
+        self._read_young = True
 
         self._grid = None
 
     def add_args(self, parser):
-        parser.add_argument('--photometry', type=str, nargs='+', required=True, help='List of photometric systems.\n')
+        super().add_args(parser)
+
         parser.add_argument('--alpha', type=str, help='Alpha abundance.\n')
         parser.add_argument('--helium', type=str, help='Helium abundance.\n')
 
     def parse_args(self, args):
-        self._in = args['in'][0]
-        self._out = args['out']
-        if 'photometry' in args and args['photometry'] is not None:
-            self._photometry = args['photometry']
+        super().parse_args(args)
+
         if 'alpha' in args and args['alpha'] is not None:
             self._alpha = args['alpha']
         if 'helium' in args and args['helium'] is not None:
             self._helium = args['helium']
-
-    def run(self):
-        self._grid = Dartmouth()
-
-        for p in self._photometry:
-            logging.info('Processing isochrones for photometric system {}.'.format(p))
-
-            if 'conversion' not in DartmouthReader.PHOTOMETRY[p]:
-                data = self._read_all(self._alpha, self._helium, photometry=p, read_young=True)
-
-                if len(data) == 0:
-                    raise Exception('No data files for photometric system `{}` found.'.format(p))
-
-                self._build_grid(data, p)
-            else:
-                # Do photometric system conversions
-                DartmouthReader.PHOTOMETRY[p]['conversion'](self._grid)
-
-        self._find_grid_limits(self._grid)
-
-        fn = os.path.join(self._out, 'isochrones.h5')
-        self._grid.save(fn)
 
     def _get_filename(self, Fe_H, A, Y, photometry, postfix=''):
         return os.path.join(self._in, photometry, self._file_pattern.format(Fe_H, A, Y, photometry, postfix))
@@ -174,19 +151,26 @@ class DartmouthReader():
         df = pd.concat(all)
         return df
 
-    def _read_all(self, A='p0', Y='', photometry='SDSSugriz', read_young=True):
+    def _read_all(self, photometry, alpha=None, helium=None, read_young=None):
+        alpha = alpha if alpha is not None else self._alpha
+        helium = helium if helium is not None else self._helium
+        read_young = read_young if read_young is not None else self._read_young
+
         data = {}
         for Fe_H in DartmouthReader.Fe_H_map:
-            df1 = self._read_file(Fe_H, A, Y, photometry)           # old
+            df1 = self._read_file(Fe_H, alpha, helium, photometry)           # old
             if not read_young:
                 data[Fe_H] = df1
             else:
-                df2 = self._read_file(Fe_H, A, Y, photometry, '_2')     # young
+                df2 = self._read_file(Fe_H, alpha, helium, photometry, '_2')     # young
                 if df2 is not None:
                     # Get rid of repeating isochrones
                     df2 = df2[df2['age'] != 1.0]
                     data[Fe_H] = pd.concat([df2, df1])
         return data
+
+    def _create_grid(self):
+        return Dartmouth()
 
     def _build_grid(self, data, photometry):
         param_Fe_H = np.array([DartmouthReader.Fe_H_map[k] for k in DartmouthReader.Fe_H_map if k in data], dtype=np.float32)
@@ -257,31 +241,3 @@ class DartmouthReader():
             np.testing.assert_array_equal(self._grid._axes['EEP'], param_EEP)
             
         self._grid._values.update(grid)
-
-    def _find_grid_limits(self, grid):
-        # Replace NaNs of non-existing EEPs with -inf (below minimum M_ini) and +inf (above maximum M_ini)
-        # this give the position of cuts
-        # Substitute NaNs
-        for k in grid._values.keys():
-            for i, x in enumerate(grid._values[k]):
-                for j, y in enumerate(x):
-                    try:
-                        split = np.nanargmin(grid._values[k][i, j, :])
-                        #print(i, j, y.shape)
-                        m = np.full(y.shape, False)
-                        m[:split] = True
-                        m[m] = np.isnan(y[m])
-                        y[m] = -np.inf
-
-                        m = np.full(y.shape, False)
-                        m[split:] = True
-                        m[m] = np.isnan(y[m])
-                        y[m] = np.inf
-
-                        #print(m)
-                        #print(y)
-                    except ValueError:
-                        print('All values are Nan in `{}` at `{}`, `{}`'.format(k, grid._axes['Fe_H'][i], grid._axes['log_t'][j]))
-
-    def execute_notebooks(self, script):
-        pass

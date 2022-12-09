@@ -3,14 +3,14 @@ import os
 import tensorflow.compat.v2 as tf
 
 from ..test_base import TestBase
-from pfs.ga.isochrones.constants import Constants
+from pfs.ga.isochrones import Constants
 from pfs.ga.isochrones import Dartmouth
 from pfs.ga.isochrones.io import DartmouthReader
 
 class TestDartmouthReader(TestBase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass(cls)
+        super().setUpClass()
 
         os.makedirs(cls.ISOCHRONES_TEST, exist_ok=True)
 
@@ -29,11 +29,11 @@ class TestDartmouthReader(TestBase):
     def test_read_all(self):
         reader = self._create_reader()
 
-        dartmouth = reader._read_all('p0', '', photometry='SDSSugriz', read_young=True)
+        dartmouth = reader._read_all('SDSSugriz', 'p0', '', read_young=True)
         self.assertEqual(9, len(dartmouth))
         self.assertEqual((14845, 14), dartmouth['p00'].shape)
 
-        dartmouth = reader._read_all('p0', '', photometry='SDSSugriz', read_young=False)
+        dartmouth = reader._read_all('SDSSugriz', 'p0', '', read_young=False)
         self.assertEqual(9, len(dartmouth))
         self.assertEqual((10029, 14), dartmouth['p00'].shape)
 
@@ -41,7 +41,7 @@ class TestDartmouthReader(TestBase):
         reader = self._create_reader()
         reader._grid = Dartmouth()
         
-        dartmouth = reader._read_all('p0', '', photometry='SDSSugriz', read_young=True)
+        dartmouth = reader._read_all('SDSSugriz', 'p0', '', read_young=True)
         self.assertEqual(9, len(dartmouth))
         self.assertEqual((14845, 14), dartmouth['p00'].shape)
 

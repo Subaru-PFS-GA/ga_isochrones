@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from .script import Script
 from ..io import DartmouthReader
-from ..io import MistReader
+from ..io import MISTReader
 from ..util.data import *
 
 class Import(Script):
@@ -20,7 +20,7 @@ class Import(Script):
 
     MODES = {
         'dartmouth': DartmouthReader,
-        'mist': MistReader
+        'mist': MISTReader
     }
 
     def __init__(self):

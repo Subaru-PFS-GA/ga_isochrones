@@ -15,11 +15,12 @@ class TestBase(TestCase):
         except ValueError:
             pass
 
+        cls.ISOCHRONES_ROOT = os.environ['ISOCHRONES_ROOT'].strip('"') if 'ISOCHRONES_ROOT' in os.environ else ''
+        cls.ISOCHRONES_DATA = os.environ['ISOCHRONES_DATA'].strip('"') if 'ISOCHRONES_DATA' in os.environ else ''
+        cls.ISOCHRONES_TEST = os.environ['ISOCHRONES_TEST'].strip('"') if 'ISOCHRONES_TEST' in os.environ else ''
+
     def setUp(self):
         plt.figure(figsize=(10, 6))
-        self.ISOCHRONES_ROOT = os.environ['ISOCHRONES_ROOT'].strip('"') if 'ISOCHRONES_ROOT' in os.environ else ''
-        self.ISOCHRONES_DATA = os.environ['ISOCHRONES_DATA'].strip('"') if 'ISOCHRONES_DATA' in os.environ else ''
-        self.ISOCHRONES_TEST = os.environ['ISOCHRONES_TEST'].strip('"') if 'ISOCHRONES_TEST' in os.environ else ''
 
     def get_filename(self, ext):
         filename = type(self).__name__[4:] + '_' + self._testMethodName[5:] + ext
