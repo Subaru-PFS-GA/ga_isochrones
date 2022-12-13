@@ -22,7 +22,8 @@ PACKAGE_DEPENDS = [
     ['h5py', '>=2.10.0'],
     ['matplotlib', '>=3.1.3'],
     ['scipy', '>=1.5.3'],
-    ['tensorflow', '>=2.4']
+    ['tensorflow', '==2.4.1'],
+    ['pyyaml', '>=6.0']
 ]
 
 # ### End packaga constants
@@ -210,6 +211,15 @@ def get_versions(args, unknown_args):
 
     return tag, next_version, build
 
+def find_notebooks():
+    nbs = []
+    for fn in glob.glob(os.path.join(PACKAGE_FOLDER_PATH, PACKAGE_NAMESPACE, '**/*.ipynb')):
+        nbs.append(os.path.relpath(fn, '.'))
+    return nbs
+
+def format_includes_manifest_in(includes):
+    return ''.join(f'include {i}\n' for i in includes)
+
 def find_console_scripts():
     console_scripts = []
     for fn in glob.glob(os.path.join(PACKAGE_FOLDER_PATH, PACKAGE_NAMESPACE, 'scripts/*.py')):
@@ -242,6 +252,7 @@ def generate_config(version, build):
     logging.info('Generating setup configuration files.')
 
     excl = get_excludes()
+    nbs = find_notebooks()
     cmd = find_console_scripts()
 
     patterns = (
@@ -251,6 +262,7 @@ def generate_config(version, build):
         ('%%version%%', format_version(*version)),
         ('%%build%%', str(build)),
         ('%%excludes_cfg%%', format_excludes_cfg(excl)),
+        ('%%data_files%%', format_includes_manifest_in(nbs)),
         ('%%requirements_txt%%', format_dependencies(PACKAGE_DEPENDS)),
         ('%%requirements_yaml%%', format_dependencies(PACKAGE_DEPENDS, indent='        - ')),
         ('%%requirements_cfg%%', format_dependencies(PACKAGE_DEPENDS, indent='    ')),
@@ -275,6 +287,9 @@ def generate_config(version, build):
 
     sed(patterns, './assets/build/_requirements.txt', './requirements.txt')
     logging.info('Copied requirements.txt')
+
+    sed(patterns, './assets/build/_MANIFEST.in', './MANIFEST.in')
+    logging.info('Generated MANIFEST.in')
 
 def configure(args, unknown_args):
     logging.info('Executing setup command `configure`.')

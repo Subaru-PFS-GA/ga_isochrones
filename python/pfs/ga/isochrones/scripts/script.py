@@ -13,6 +13,7 @@ import tensorflow.compat.v2 as tf
 from tensorflow.python.framework.ops import EagerTensor
 from tensorflow.python.profiler import profiler_v2 as profiler
 
+import pfs.ga.isochrones
 import pfs.ga.isochrones.util.argutil as util
 from pfs.ga.isochrones.util.notebookrunner import NotebookRunner
 
@@ -352,14 +353,14 @@ class Script():
 
         # Project path is added so that the pfsspec lib can be called without
         # installing it
-        if 'PROJECT_PATH' not in parameters:
-            parameters['PROJECT_PATH'] = os.getcwd()
+        # if 'PROJECT_PATH' not in parameters:
+        #     parameters['PROJECT_PATH'] = os.getcwd()
 
         if output_notebook_name is None:
             output_notebook_name = notebook_name
 
         nr = NotebookRunner()
-        nr.input_notebook = os.path.join('nb/eval', notebook_name + '.ipynb')
+        nr.input_notebook = os.path.join(pfs.ga.isochrones.__path__[0], 'nb', notebook_name + '.ipynb')
         nr.output_notebook = os.path.join(outdir, output_notebook_name + '.ipynb')
         if output_html:
             nr.output_html = os.path.join(outdir, output_notebook_name + '.html')

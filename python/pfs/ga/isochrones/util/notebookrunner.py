@@ -19,9 +19,11 @@ class NotebookRunner():
         self.nb = None
 
     def copy_notebook(self):
+        logging.debug(f'Copy notebook from {self.input_notebook} to {self.output_notebook}')
         copyfile(self.input_notebook, self.output_notebook)
 
     def open_notebook(self):
+        logging.debug(f'Loading notebook from {self.output_notebook}')
         with open(self.output_notebook, 'r') as f:
             self.nb = nbformat.read(f, as_version=4)
 
@@ -30,6 +32,8 @@ class NotebookRunner():
             ks = self.nb.metadata.get('kernelspec', {})
             ks['name'] = self.kernel
 
+            logging.debug(f'Set notebook kernel to {self.kernel}')
+
     def set_params(self):
         orig_params = extract_parameters(self.nb)
         new_params = parameter_values(orig_params, **self.parameters)
@@ -37,6 +41,8 @@ class NotebookRunner():
 
     def convert_html(self):
         if self.output_html is not None:
+            logging.debug(f'Converting notebook to HTML from {self.output_notebook} to {self.output_html}')
+
             html_exporter = HTMLExporter()
             #html_exporter.template_file = 'basic'
             (body, resources) = html_exporter.from_notebook_node(self.nb)
@@ -61,6 +67,7 @@ class NotebookRunner():
             # Error is not propagated to allow saving notebook
 
     def save_notebook(self):
+        logging.debug(f'Saving notebook to {self.output_notebook}')
         with open(self.output_notebook, 'w') as f:
             nbformat.write(self.nb, f)
 
