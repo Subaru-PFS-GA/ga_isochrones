@@ -13,7 +13,14 @@ from ..util.astro import *
 from ..util.data import *
 from .isogridreader import IsoGridReader
 
-def convert_to_hsc(grid):
+def _convert_to_hsc(grid):
+    """
+    Calculates HSC photometry from SDSS for the entire isochrone grid.
+
+    Args:
+        grid (IsoGrid): An isochrone grid with SDSS photometry
+    """
+
     # Temporarily ignore floating point errors to deal with nans in source arrays
     with np.errstate(all="ignore"):
         hsc_g, hsc_i = sdss_to_hsc(grid._values['sdss_g'], grid._values['sdss_r'],
@@ -33,7 +40,7 @@ class DartmouthReader(IsoGridReader):
             'dest': [ 'cfht_u', 'cfht_g', 'cfht_r', 'cfht_i', None ]
         },
         'HSC': {
-            'conversion': convert_to_hsc,
+            'conversion': _convert_to_hsc,
             'dest': [ 'hsc_g', 'hsc_i' ]
         },
         'PanSTARRS': {

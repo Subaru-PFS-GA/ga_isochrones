@@ -8,6 +8,7 @@ class InterpNd(object):
     grid cells where interpolation should happen. This index can be kept between
     calls to speed up iterative operation.
     """
+    
     def __init__(self, axes):
         self._axes = axes
         self._dim = len(axes)
@@ -15,6 +16,18 @@ class InterpNd(object):
         self._idx = None
 
     def __call__(self, x, values, reindex=False):
+        """
+        Interpolates the grids of `values` to positions `x`.
+
+        Parameters
+        ----------
+        x : array of float
+            Array representing the new coordinates
+        values : list of arrays of float
+            List of grid value arrays to interpolate from
+        reindex : bool, optional
+            If True, the grid is reindexed, see _create_index
+        """
         return self._interpNd(x, values, reindex=reindex)
 
     def _interpNd(self, x, values, reindex=False):
@@ -84,12 +97,14 @@ class InterpNd(object):
         return idx
 
     def _create_index(self, x):
-        # Create an inverse look-up index along each dimension of the data cube.
-        # Results will contain the indices bracketing the value of x in each dimension.
-        # x has the shape of (batch_shape, dim)
-        # idx_ax will contain indices along each dimension with a shape of (batch_shape)
-        # idx will contain indices along all dimensions for the 2**d neighboring grid points
-        #     with a shape of (batch_dim, 2**d, d)
+        """
+        Create an inverse look-up index along each dimension of the data cube.
+        Results will contain the indices bracketing the value of x in each dimension.
+        x has the shape of (batch_shape, dim)
+        idx_ax will contain indices along each dimension with a shape of (batch_shape)
+        idx will contain indices along all dimensions for the 2**d neighboring grid points
+        with a shape of (batch_dim, 2**d, d)
+        """
 
         # TODO: we could save a little bit memory here by only computing the lo index of the
         #       surrounding grid points. But then it would require dealing with intervals in
