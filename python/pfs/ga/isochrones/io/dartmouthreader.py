@@ -23,11 +23,10 @@ def _convert_to_hsc(grid):
 
     # Temporarily ignore floating point errors to deal with nans in source arrays
     with np.errstate(all="ignore"):
-        hsc_g, hsc_i = sdss_to_hsc(grid._values['sdss_g'], grid._values['sdss_r'],
+        hsc = sdss_to_hsc(grid._values['sdss_g'], grid._values['sdss_r'],
                                 grid._values['sdss_i'], grid._values['sdss_z'])
 
-    grid._values['hsc_g'] = hsc_g
-    grid._values['hsc_i'] = hsc_i
+    grid._values.update(hsc)
 
 class DartmouthReader(IsoGridReader):
     PHOTOMETRY = {
@@ -129,11 +128,11 @@ class DartmouthReader(IsoGridReader):
                 q += 1
             breaks.append(q)
 
-        return np.array(ages, np.float), breaks
+        return np.array(ages, dtype=float), breaks
 
     def _read_file(self, Fe_H, A, Y, photometry, postfix=''):
         filename = self._get_filename(Fe_H, A, Y, photometry, postfix=postfix)
-        names = ['EEP', 'M_ini', 'Log_T_eff', 'log_g', 'log_L'] + \
+        names = ['EEP', 'M_ini', 'log_T_eff', 'log_g', 'log_L'] + \
                 DartmouthReader.PHOTOMETRY[photometry]['source']
         if not os.path.isfile(filename):
             logging.warning('Isochrone file not found: `{}`.'.format(filename))
@@ -151,7 +150,7 @@ class DartmouthReader(IsoGridReader):
             df['age'] = ages[i] # Gyr
             df['log_t'] = np.log10(ages[i]) + 9.0
             df['Fe_H'] = DartmouthReader.Fe_H_map[Fe_H]
-            df['Alpha_Fe'] = DartmouthReader.A_Fe_map[A]
+            df['alpha_Fe'] = DartmouthReader.A_Fe_map[A]
             
             all.append(df)
 
@@ -208,7 +207,7 @@ class DartmouthReader(IsoGridReader):
         index_EEP = {v: i for i, v in enumerate(param_EEP)}
         logging.info('param_EEP, param_EEP.shape = {}, {}'.format(param_EEP, param_EEP.shape))
         
-        values = ['M_ini', 'Log_T_eff', 'log_g', 'log_L']
+        values = ['M_ini', 'log_T_eff', 'log_g', 'log_L']
         
         grid = {}
         for k in values + DartmouthReader.PHOTOMETRY[photometry]['dest']:
