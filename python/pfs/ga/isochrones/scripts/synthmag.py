@@ -89,7 +89,7 @@ class SynthMag(Script):
         self.specgrid.load(os.path.join(self._specgrid_path, 'spectra.h5'), format='h5')
 
         print('Loaded spectrum grid.')
-        axes = self.specgrid.get_axes()
+        axes = { k: ax for _, k, ax in self.specgrid.enumerate_axes() }
         for k in axes:
             print(k, axes[k].values)
 
