@@ -26,7 +26,7 @@ class TestInterpNd(TestBase):
     def test_digitize(self):
         def digitize(log_t):
             ip = InterpNd([grid.Fe_H, grid.log_t, grid.EEP])
-            idx = ip._digitize(log_t, grid.log_t)
+            idx, mask = ip._digitize(log_t, grid.log_t)
             mask = (log_t <= grid.log_t[0]) | (log_t > grid.log_t[-1])
             self.assertEqual(idx.shape, log_t.shape)
 
@@ -46,7 +46,7 @@ class TestInterpNd(TestBase):
     def test_find_nearby(self):
         def find_nearby(log_t):
             ip = InterpNd([grid.Fe_H, grid.log_t, grid.EEP])
-            idx = ip._find_nearby(grid.log_t, log_t)
+            idx, mask = ip._find_nearby(grid.log_t, log_t)
             self.assertEqual(idx.shape, log_t.shape + (2,))
 
         grid = self.load_grid()
@@ -63,7 +63,7 @@ class TestInterpNd(TestBase):
             #Fe_H = tf.random.uniform(log_t.shape, grid.Fe_H[0] + 0.01, grid.Fe_H[-1], dtype=Constants.TF_PRECISION)
             #EEP = tf.random.uniform(log_t.shape, 202.0, 605.0, dtype=Constants.TF_PRECISION)
             #Fe_H = tf.fill(Fe_H.shape, tf.constant(-0.125, dtype=Constants.TF_PRECISION))
-            log_t = tf.fill(Fe_H.shape, tf.constant(8.125, dtype=Constants.TF_PRECISION))
+            log_t = tf.fill(Fe_H.shape, tf.constant(8.5, dtype=Constants.TF_PRECISION))
             EEP = tf.fill(Fe_H.shape, tf.constant(202.4, dtype=Constants.TF_PRECISION))
 
             x = tf.stack([Fe_H, log_t, EEP], axis=-1)

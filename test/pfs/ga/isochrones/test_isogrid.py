@@ -57,7 +57,7 @@ class TestIsoGrid(TestBase):
         def find_EEP(shape):
             # The MIST grid has a hole along [Fe/H] = -2.5, index 3
             Fe_H = tf.random.uniform(shape, -1.95, grid.Fe_H[-1] - 0.05, dtype=Constants.TF_PRECISION)
-            log_t = tf.random.uniform(shape, 8, 9.0, dtype=Constants.TF_PRECISION)
+            log_t = tf.random.uniform(shape, 8.0, 9.0, dtype=Constants.TF_PRECISION)
             M_ini = tf.random.uniform(shape, 0.1, 3.0, dtype=Constants.TF_PRECISION)
 
             x = tf.stack([Fe_H, log_t, M_ini], axis=-1)
