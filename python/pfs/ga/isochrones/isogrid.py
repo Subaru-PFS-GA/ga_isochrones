@@ -150,6 +150,8 @@ class IsoGrid(Grid):
         # After each step, we can store the index corresponding to the EEP axis
         # for the 8 surrounding points
         
+        # TODO: use eep_eps or something, instead of constants
+        
         [lo_M_ini] = self._interp3d_EEP(Fe_H, log_t, lo_EEP + 0.001, [self.M_ini])
         # lo_EEP_idx = self._ip._idx[..., 2]
         
@@ -159,7 +161,7 @@ class IsoGrid(Grid):
         # Mask stars with M_ini outside the range of the isochrones
         mask = (M_ini <= lo_M_ini) | (hi_M_ini < M_ini)
         
-        bad_count = 2 * M_ini.shape.num_elements()
+        bad_count = 2 * M_ini.ndim
         q = 0
         while bad_count > 0 and q < 20:
             mi_EEP = (lo_EEP + hi_EEP) / 2
@@ -194,9 +196,16 @@ class IsoGrid(Grid):
 
             q += 1
 
+        # Also mask values that are nan
+        mask = mask | tf.math.is_nan(mi_M_ini)
+
         return mi_EEP, mi_M_ini, mask
         
     def interp3d(self, Fe_H, log_t, M_ini, values, update_index=True):
+        """Interpolate the isochrones give the initial mass."""
+
+        # This is an implicit interpolation
+        
         x = tf.stack([Fe_H, log_t, tf.zeros_like(M_ini)], axis=-1)
         self._ip._create_index(x)
         mi_EEP, mi_M_ini, mask = self._find_EEP(Fe_H, log_t, M_ini)
@@ -206,3 +215,25 @@ class IsoGrid(Grid):
         nan = tf.constant([np.nan], dtype=self._dtype)
         res = [tf.where(mask, nan, v) for v in res]
         return mi_EEP, mi_M_ini, res, mask
+
+    def interp3d_EEP(self, Fe_H, log_t, EEP, values):
+        """Interpolate the isochrones give the EEPs."""
+
+        # This a single forward interpolation
+
+        x = tf.stack([Fe_H, log_t, EEP], axis=-1)
+        self._ip._create_index(x)
+        
+        # Append M_ini to the list of interpolated values
+        values = values.copy()       # shallow copy
+        values.append(self.values['M_ini'])
+
+        res = self._interp3d_EEP(Fe_H, log_t, EEP, values, update_index=False)
+        
+        # Remove M_ini from the results
+        M_ini = res[-1]
+        del res[-1]
+        
+        mask = tf.math.is_inf(M_ini)
+        res = [tf.where(mask, np.nan, v) for v in res]
+        return EEP, M_ini, res, mask
