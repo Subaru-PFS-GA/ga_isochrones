@@ -1,5 +1,4 @@
 import numpy as np
-from tensorflow.python.framework.ops import EagerTensor
 
 from ..util.astro import *
 from ..util.data import *
