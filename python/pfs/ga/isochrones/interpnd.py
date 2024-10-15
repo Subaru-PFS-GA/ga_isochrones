@@ -1,5 +1,4 @@
-import numpy as np
-import tensorflow.compat.v2 as tf
+# from .tensorlib import tensorlib as tl
 
 class InterpNd(object):
     """
@@ -40,10 +39,10 @@ class InterpNd(object):
             
         batch_shape = x.shape[:-1]
 
-        i0 = tf.identity(0)
-        i1 = tf.identity(1)
-        s1 = tf.identity(2**(self._dim - 1))
-        s2 = tf.identity(2**self._dim)
+        i0 = 0
+        i1 = 1
+        s1 = 2**(self._dim - 1)
+        s2 = 2**self._dim
 
         # Combine the mask for each axis
         mask = None
@@ -61,14 +60,14 @@ class InterpNd(object):
         idx = self._idx[..., i0:s2, :]
 
         # If running on the CPU, we need to reset the indices which would raise an exception
-        s = (Ellipsis,) + (idx.ndim - len(batch_shape)) * (tf.newaxis,)
-        idx = tf.where(mask[s], tf.zeros_like(idx), idx)
+        s = (Ellipsis,) + (idx.ndim - len(batch_shape)) * (tl.newaxis,)
+        idx = tl.where(mask[s], tl.zeros_like(idx), idx)
 
         y = []
         for v in values:
             v = tf.gather_nd(v, idx)
-            s = (Ellipsis,) + (v.ndim - len(batch_shape)) * (tf.newaxis,)
-            v = tf.where(mask[s], np.nan, v)
+            s = (Ellipsis,) + (v.ndim - len(batch_shape)) * (tl.newaxis,)
+            v = tl.where(mask[s], tl.nan, v)
             y.append(v)
 
         # Perform the linear interpolation along the grid lines for each axis
@@ -76,9 +75,9 @@ class InterpNd(object):
             # Note, that gather returns 0 for indexes outside the valid range and
             # does not support wrap-around or negative indexes.
             idx = self._idx_ax[i]
-            idx = tf.where(mask[..., tf.newaxis], tf.zeros_like(idx), idx)
+            idx = tl.where(mask[..., tl.newaxis], tl.zeros_like(idx), idx)
 
-            xx = tf.gather(self._axes[i], idx)
+            xx = tl.gather(self._axes[i], idx)
             x0 = xx[..., i0]
             x1 = xx[..., i1]
             xi = x[..., i]
@@ -90,33 +89,30 @@ class InterpNd(object):
         vv = []
         for v in y:
             v = v[..., 0]
-            v = tf.where(mask, np.nan, v)
+            v = tl.where(mask, tl.nan, v)
             vv.append(v)
 
         return vv
 
-    #@tf.function
     def _interp1d(self, x1, x2, y1, y2, x):
         """Interplate value linearly from `(x1, y1)` and `(x2, y2)` to `x`."""
         # x1, x2 and x should have the shape of (N,)
         X = (x - x1) / (x2 - x1)
-        Y = y1 + (y2 - y1) * X[..., tf.newaxis]
+        Y = y1 + (y2 - y1) * X[..., tl.newaxis]
         return Y
 
-    #@tf.function
     def _digitize(self, x, ax):
-        xx = tf.reshape(x, [-1])
-        l = tf.searchsorted(ax, xx, side='right')
-        l = tf.reshape(l, x.shape)
+        xx = tl.reshape(x, [-1])
+        l = tl.searchsorted(ax, xx, side='right')
+        l = tl.reshape(l, x.shape)
         mask = (x < ax[0]) | (x >= ax[-1])
         return l, mask
 
-    #@tf.function
     def _find_nearby(self, ax, x):
         # Find bracketing indices for every item in x along axis ax
         # Indices are bracket by assuming (,] parameter intervals
         idx, mask = self._digitize(x, ax)
-        idx = tf.stack([idx - 1, idx], axis=-1)
+        idx = tl.stack([idx - 1, idx], axis=-1)
         return idx, mask
 
     def _create_index(self, x):
@@ -156,13 +152,13 @@ class InterpNd(object):
 
         X = []
         for i, ax in enumerate(self._idx_ax):
-            A = tf.reshape(tf.repeat(ax, repeats=2**i, axis=-1), batch_shape + (2**(i + 1), 1))
+            A = tl.reshape(tf.repeat(ax, repeats=2**i, axis=-1), batch_shape + (2**(i + 1), 1))
             X.append(A)
         
         Q = X[0]
         for i in range(1, len(X)):
-            Q = tf.reshape(tf.repeat(Q, repeats=2, axis=-3), batch_shape + (2**(i + 1), i))
-            Q = tf.concat([Q, X[i]], axis=-1)
+            Q = tl.reshape(tf.repeat(Q, repeats=2, axis=-3), batch_shape + (2**(i + 1), i))
+            Q = tl.concat([Q, X[i]], axis=-1)
             
         self._idx = Q
 
@@ -175,10 +171,10 @@ class InterpNd(object):
         # Update the single axis index along the selected dimension
         self._idx_ax[i], self._mask_ax[i] = self._find_nearby(self._axes[i], x[..., i])
 
-        A = tf.reshape(tf.repeat(self._idx_ax[i], repeats=2**(self._dim - 1), axis=-1), batch_shape + (2**self._dim, 1))
+        A = tl.reshape(tf.repeat(self._idx_ax[i], repeats=2**(self._dim - 1), axis=-1), batch_shape + (2**self._dim, 1))
         if i == 0:
-            self._idx = tf.concat([A, self._idx[..., 1:]], axis=-1)
+            self._idx = tl.concat([A, self._idx[..., 1:]], axis=-1)
         elif i == self._dim - 1:
-            self._idx = tf.concat([self._idx[..., :-1], A], axis=-1)
+            self._idx = tl.concat([self._idx[..., :-1], A], axis=-1)
         else:
-            self._idx = tf.concat([self._idx[..., 0:i], A, self._idx[..., i + 1:]], axis=-1)
+            self._idx = tl.concat([self._idx[..., 0:i], A, self._idx[..., i + 1:]], axis=-1)
