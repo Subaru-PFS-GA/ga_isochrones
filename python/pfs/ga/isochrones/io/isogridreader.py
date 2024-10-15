@@ -2,7 +2,6 @@ import os
 import logging
 import numpy as np
 
-
 class IsoGridReader():
     def __init__(self):
         self._in = None
