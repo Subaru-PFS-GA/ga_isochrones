@@ -149,3 +149,9 @@ def max(data, axis=None):
     else:
         values, _ = torch.max(data, dim=axis)
     return values
+
+def count_nonzero(data, axis=None, dtype=None):
+    res = torch.count_nonzero(data, dim=axis)
+    if dtype is not None:
+        res = res.to(dtype)
+    return res

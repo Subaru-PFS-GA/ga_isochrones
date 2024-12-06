@@ -340,6 +340,18 @@ class TensorlibTestBase():
         t = tt.tensor([[1, 2], [3, 4]])
         self.assertTrue(tt.all(tt.tensor([2, 4]) == tt.max(t, axis=1)))
 
+    def test_count_nonzero(self):
+        tt = self.get_tensorlib()
+
+        t = tt.tensor([1, 2, 0, 3])
+        self.assertEqual(3, tt.count_nonzero(t))
+
+        t = tt.tensor([[1, 2], [0, 3]])
+        self.assertEqual(3, tt.count_nonzero(t))
+
+        t = tt.tensor([True, False])
+        self.assertEqual(1, tt.count_nonzero(t))
+
     def test_random_normal(self):
         tt = self.get_tensorlib()
         tr = self.get_tensorlib_random()

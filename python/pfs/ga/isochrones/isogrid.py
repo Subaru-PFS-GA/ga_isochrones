@@ -215,6 +215,6 @@ class IsoGrid(Grid):
         M_ini = res[-1]
         del res[-1]
         
-        mask = tt.is_inf(M_ini)
+        mask = tt.isinf(M_ini)
         res = [tt.where(mask, tt.nan, v) for v in res]
         return EEP, M_ini, res, mask

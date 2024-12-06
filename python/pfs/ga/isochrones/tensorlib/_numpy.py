@@ -121,3 +121,9 @@ def min(data, axis=None):
 
 def max(data, axis=None):
     return np.max(data, axis=axis)
+
+def count_nonzero(data, axis=None, dtype=None):
+    res = np.count_nonzero(data, axis=axis)
+    if dtype is not None:
+        res = res.astype(dtype)
+    return res

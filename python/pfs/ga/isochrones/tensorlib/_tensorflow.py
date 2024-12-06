@@ -119,3 +119,6 @@ def min(data, axis=None):
 
 def max(data, axis=None):
     return tf.reduce_max(data, axis=axis)
+
+def count_nonzero(data, axis=None, dtype=tf.int64):
+    return tf.math.count_nonzero(data, axis=axis, dtype=dtype)
