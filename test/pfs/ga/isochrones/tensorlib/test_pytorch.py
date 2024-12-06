@@ -1,9 +1,10 @@
 import os
 from importlib import reload
+from unittest import TestCase
 
-from .testbase import TestBase
+from .tensorlibtestbase import TensorlibTestBase
 
-class PytorchTest(TestBase):
+class PytorchTest(TensorlibTestBase, TestCase):
     def get_lib(self):
         return 'pytorch'
     

@@ -1,9 +1,10 @@
 import os
 from importlib import reload
+from unittest import TestCase
 
-from .testbase import TestBase
+from .tensorlibtestbase import TensorlibTestBase
 
-class TensorflowTest(TestBase):
+class TensorflowTest(TensorlibTestBase, TestCase):
     def get_lib(self):
         return 'tensorflow'
     
