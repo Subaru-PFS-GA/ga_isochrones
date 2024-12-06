@@ -1,12 +1,11 @@
 import os
 
-import tensorflow.compat.v2 as tf
-
 from .test_base import TestBase
+from pfs.ga.isochrones import tensorlib as tt
 from pfs.ga.isochrones.constants import Constants
 from pfs.ga.isochrones import Dartmouth
 
-class TestIsoGrid(TestBase):
+class IsoGridTest(TestBase):
     def load_grid(self):
         grid = Dartmouth()
         grid.load(os.path.join(self.ISOCHRONES_DATA, 'dartmouth/import/afep0_cfht_sdss_hsc/isochrones.h5'))
@@ -19,9 +18,9 @@ class TestIsoGrid(TestBase):
 
     def test_interp3d_EEP(self):
         def interp3d_EEP(shape):
-            Fe_H = tf.random.uniform(shape, grid.Fe_H[0] + 0.05, grid.Fe_H[-1] - 0.05, dtype=Constants.TF_PRECISION)
-            log_t = tf.random.uniform(shape, 8, 9.0, dtype=Constants.TF_PRECISION)
-            EEP = tf.random.uniform(shape, 150, 350, dtype=Constants.TF_PRECISION)
+            Fe_H = tt.random.uniform(a=grid.Fe_H[0] + 0.05, b=grid.Fe_H[-1] - 0.05, size=shape, dtype=Constants.TT_PRECISION)
+            log_t = tt.random.uniform(a=8, b=9.0, size=shape, dtype=Constants.TT_PRECISION)
+            EEP = tt.random.uniform(a=150, b=350, size=shape, dtype=Constants.TT_PRECISION)
 
             [M_ini] = grid._interp3d_EEP(Fe_H, log_t, EEP, [grid.M_ini])
             self.assertEqual(shape, M_ini.shape)
@@ -37,10 +36,10 @@ class TestIsoGrid(TestBase):
 
     def test_bracket_EEP(self):
         def bracket_EEP(shape):
-            Fe_H = tf.random.uniform(shape, grid.Fe_H[0] + 0.05, grid.Fe_H[-1] - 0.05, dtype=Constants.TF_PRECISION)
-            log_t = tf.random.uniform(shape, 8, 9.0, dtype=Constants.TF_PRECISION)
+            Fe_H = tt.random.uniform(a=grid.Fe_H[0] + 0.05, b=grid.Fe_H[-1] - 0.05, size=shape, dtype=Constants.TT_PRECISION)
+            log_t = tt.random.uniform(a=8, b=9.0, size=shape, dtype=Constants.TT_PRECISION)
 
-            x = tf.stack([Fe_H, log_t, tf.zeros_like(Fe_H)], axis=-1)
+            x = tt.stack([Fe_H, log_t, tt.zeros_like(Fe_H)], axis=-1)
             grid._ip._create_index(x)
             lo_EEP, hi_EEP = grid._bracket_EEP()
 
@@ -56,16 +55,16 @@ class TestIsoGrid(TestBase):
     def test_find_EEP(self):
         def find_EEP(shape):
             # The MIST grid has a hole along [Fe/H] = -2.5, index 3
-            Fe_H = tf.random.uniform(shape, -1.95, grid.Fe_H[-1] - 0.05, dtype=Constants.TF_PRECISION)
-            log_t = tf.random.uniform(shape, 8.0, 9.0, dtype=Constants.TF_PRECISION)
-            M_ini = tf.random.uniform(shape, 0.1, 3.0, dtype=Constants.TF_PRECISION)
+            Fe_H = tt.random.uniform(a=-1.95, b=grid.Fe_H[-1] - 0.05, size=shape, dtype=Constants.TT_PRECISION)
+            log_t = tt.random.uniform(a=8.0, b=9.0, size=shape, dtype=Constants.TT_PRECISION)
+            M_ini = tt.random.uniform(a=0.1, b=3.0, size=shape, dtype=Constants.TT_PRECISION)
 
-            x = tf.stack([Fe_H, log_t, M_ini], axis=-1)
+            x = tt.stack([Fe_H, log_t, M_ini], axis=-1)
             grid._ip._create_index(x)
             mi_EEP, mi_M_ini, mask = grid._find_EEP(Fe_H, log_t, M_ini)
 
-            diff = tf.abs(M_ini - mi_M_ini)
-            diff = tf.math.reduce_max(tf.where(mask, 0, diff))
+            diff = tt.abs(M_ini - mi_M_ini)
+            diff = tt.max(tt.where(mask, 0, diff))
             self.assertTrue(diff < 1.0e-3)
 
         grid = self.load_grid()
@@ -75,22 +74,22 @@ class TestIsoGrid(TestBase):
         find_EEP((10, 3))
 
     def test_find_EEP_limits(self):
-        Fe_H = tf.convert_to_tensor([-0.09211389, -0.09211389, -0.18223292, -0.18223292,  0.00416489,
-                                      0.00416489, -0.07610813, -0.07610813, -0.06870603, -0.06870603,
-                                     -0.80026388, -0.80026388, -0.51160281, -0.51160281, -0.73004026,
-                                     -0.73004026, -1.94617729, -1.94617729], dtype=Constants.TF_PRECISION)
-        log_t = tf.convert_to_tensor([ 8.60093254,  8.60093254,  9.09404259,  9.09404259,  9.42434881,
-                                       9.42434881,  9.66365287,  9.66365287,  9.80777486,  9.80777486,
-                                       9.98890987,  9.98890987, 10.041392  , 10.041392  , 10.146128  ,
-                                      10.146128  , 10.175     , 10.175     ], dtype=Constants.TF_PRECISION)
-        M_ini = tf.convert_to_tensor([0.12229782, 0.34620701, 0.10798566, 0.113546  , 0.10026138,
-                                      0.11675613, 0.31158672, 0.10588064, 0.12232815, 0.13681453,
-                                      0.12524728, 0.16292408, 0.10486671, 0.1227991 , 0.12355714,
-                                      0.15054357, 0.6735583 , 0.69743672], dtype=Constants.TF_PRECISION)
+        Fe_H = tt.tensor([-0.09211389, -0.09211389, -0.18223292, -0.18223292,  0.00416489,
+                           0.00416489, -0.07610813, -0.07610813, -0.06870603, -0.06870603,
+                          -0.80026388, -0.80026388, -0.51160281, -0.51160281, -0.73004026,
+                          -0.73004026, -1.94617729, -1.94617729], dtype=Constants.TT_PRECISION)
+        log_t = tt.tensor([ 8.60093254,  8.60093254,  9.09404259,  9.09404259,  9.42434881,
+                            9.42434881,  9.66365287,  9.66365287,  9.80777486,  9.80777486,
+                            9.98890987,  9.98890987, 10.041392  , 10.041392  , 10.146128  ,
+                           10.146128  , 10.175     , 10.175     ], dtype=Constants.TT_PRECISION)
+        M_ini = tt.tensor([0.12229782, 0.34620701, 0.10798566, 0.113546  , 0.10026138,
+                           0.11675613, 0.31158672, 0.10588064, 0.12232815, 0.13681453,
+                           0.12524728, 0.16292408, 0.10486671, 0.1227991 , 0.12355714,
+                           0.15054357, 0.6735583 , 0.69743672], dtype=Constants.TT_PRECISION)
         
         grid = self.load_grid()
 
-        x = tf.stack([Fe_H, log_t, tf.zeros_like(M_ini)], axis=-1)
+        x = tt.stack([Fe_H, log_t, tt.zeros_like(M_ini)], axis=-1)
         grid._ip._create_index(x)
         
         lo_EEP, hi_EEP = grid._bracket_EEP()
@@ -98,15 +97,15 @@ class TestIsoGrid(TestBase):
         [lo_M_ini] = grid._interp3d_EEP(Fe_H, log_t, lo_EEP + 0.01, [grid.M_ini])
         [hi_M_ini] = grid._interp3d_EEP(Fe_H, log_t, hi_EEP - 0.01, [grid.M_ini])
 
-        self.assertEqual(0, tf.reduce_sum(tf.cast(tf.math.is_nan(lo_M_ini), dtype=tf.int32)))
-        self.assertEqual(0, tf.reduce_sum(tf.cast(tf.math.is_nan(hi_M_ini), dtype=tf.int32)))
+        self.assertEqual(0, tt.sum(tt.cast(tt.isnan(lo_M_ini), dtype=tt.int32)))
+        self.assertEqual(0, tt.sum(tt.cast(tt.isnan(hi_M_ini), dtype=tt.int32)))
 
     def test_interp3d(self):
         def interp3d(shape):
             # The MIST grid has a hole along [Fe/H] = -2.5, index 3
-            Fe_H = tf.random.uniform(shape, -1.95, grid.Fe_H[-1] - 0.05, dtype=Constants.TF_PRECISION)
-            log_t = tf.random.uniform(shape, 8, 9.0, dtype=Constants.TF_PRECISION)
-            M_ini = tf.random.uniform(shape, 0.1, 3.0, dtype=Constants.TF_PRECISION)
+            Fe_H = tt.random.uniform(a=-1.95, b=grid.Fe_H[-1] - 0.05, size=shape, dtype=Constants.TT_PRECISION)
+            log_t = tt.random.uniform(a=8, b=9.0, size=shape, dtype=Constants.TT_PRECISION)
+            M_ini = tt.random.uniform(a=0.1, b=3.0, size=shape, dtype=Constants.TT_PRECISION)
 
             eep, _, [hsc_g, hsc_r], mask = grid.interp3d(Fe_H, log_t, M_ini, [grid.values['hsc_g'], grid.values['hsc_i']])
             self.assertEqual(shape, hsc_g.shape)
@@ -119,9 +118,9 @@ class TestIsoGrid(TestBase):
         interp3d((10,3))
 
     def test_interp3d_nan(self):
-        Fe_H = tf.convert_to_tensor([0.01329973, -0.00103306, 0.0048698, -0.01950695], dtype=Constants.TF_PRECISION)
-        log_t = tf.convert_to_tensor([10.34432429, 10.33866003, 10.30724244, 10.30065941], dtype=Constants.TF_PRECISION)
-        M_ini = tf.convert_to_tensor([0.10254606, 0.40250976, 0.12998558, 0.148707], dtype=Constants.TF_PRECISION)
+        Fe_H = tt.tensor([0.01329973, -0.00103306, 0.0048698, -0.01950695], dtype=Constants.TT_PRECISION)
+        log_t = tt.tensor([10.34432429, 10.33866003, 10.30724244, 10.30065941], dtype=Constants.TT_PRECISION)
+        M_ini = tt.tensor([0.10254606, 0.40250976, 0.12998558, 0.148707], dtype=Constants.TT_PRECISION)
 
         grid = self.load_grid()
 

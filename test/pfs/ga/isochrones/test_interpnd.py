@@ -1,26 +1,25 @@
 import os
-
 import numpy as np
 import numpy.testing
-import tensorflow.compat.v2 as tf
 
 from .test_base import TestBase
+from pfs.ga.isochrones import tensorlib as tt
 from pfs.ga.isochrones.constants import Constants
 from pfs.ga.isochrones.interpnd import InterpNd
 from pfs.ga.isochrones import Dartmouth
 
-class TestInterpNd(TestBase):
+class InterpNdTest(TestBase):
     def load_grid(self):
         grid = Dartmouth()
         grid.load(os.path.join(self.ISOCHRONES_DATA, 'dartmouth/import/afep0_cfht_sdss_hsc/isochrones.h5'))
         return grid
 
     def get_extreme(self, grid):
-        log_t = tf.convert_to_tensor([grid.log_t[0] - 1.0, grid.log_t[0], grid.log_t[grid.log_t.shape[0] // 2], grid.log_t[grid.log_t.shape[0] // 2 + 1], grid.log_t[-1], grid.log_t[-1] + 1])
+        log_t = tt.tensor([grid.log_t[0] - 1.0, grid.log_t[0], grid.log_t[grid.log_t.shape[0] // 2], grid.log_t[grid.log_t.shape[0] // 2 + 1], grid.log_t[-1], grid.log_t[-1] + 1])
         return log_t
 
     def get_random(self, grid, shape):
-        log_t = tf.random.uniform(shape, grid.log_t[0] + 0.5, grid.log_t[-1] - 0.5, dtype=Constants.TF_PRECISION)
+        log_t = tt.random.uniform(size=shape, a=grid.log_t[0] + 0.5, b=grid.log_t[-1] - 0.5, dtype=Constants.TT_PRECISION)
         return log_t
 
     def test_digitize(self):
@@ -56,17 +55,17 @@ class TestInterpNd(TestBase):
 
     def test_interpNd(self):
         def get_extreme():
-            Fe_H = tf.convert_to_tensor([grid.Fe_H[0] - 1.0, grid.Fe_H[0], grid.Fe_H[grid.Fe_H.shape[0] // 2], grid.Fe_H[grid.Fe_H.shape[0] // 2 + 1], grid.Fe_H[-1], grid.Fe_H[-1] + 1])
+            Fe_H = tt.tensor([grid.Fe_H[0] - 1.0, grid.Fe_H[0], grid.Fe_H[grid.Fe_H.shape[0] // 2], grid.Fe_H[grid.Fe_H.shape[0] // 2 + 1], grid.Fe_H[-1], grid.Fe_H[-1] + 1])
             return Fe_H
 
         def interpNd(Fe_H):
             #Fe_H = tf.random.uniform(log_t.shape, grid.Fe_H[0] + 0.01, grid.Fe_H[-1], dtype=Constants.TF_PRECISION)
             #EEP = tf.random.uniform(log_t.shape, 202.0, 605.0, dtype=Constants.TF_PRECISION)
             #Fe_H = tf.fill(Fe_H.shape, tf.constant(-0.125, dtype=Constants.TF_PRECISION))
-            log_t = tf.fill(Fe_H.shape, tf.constant(8.5, dtype=Constants.TF_PRECISION))
-            EEP = tf.fill(Fe_H.shape, tf.constant(202.4, dtype=Constants.TF_PRECISION))
+            log_t = tt.full(Fe_H.shape, 8.5, dtype=Constants.TT_PRECISION)
+            EEP = tt.full(Fe_H.shape, 202.4, dtype=Constants.TT_PRECISION)
 
-            x = tf.stack([Fe_H, log_t, EEP], axis=-1)
+            x = tt.stack([Fe_H, log_t, EEP], axis=-1)
             ip = InterpNd([grid.Fe_H, grid.log_t, grid.EEP])
             [M_ini] = ip(x, [grid.M_ini])
             self.assertEqual(log_t.shape, M_ini.shape)

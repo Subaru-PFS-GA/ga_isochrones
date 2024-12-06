@@ -1,4 +1,4 @@
-# from .tensorlib import tensorlib as tl
+from . import tensorlib as tt
 
 class InterpNd(object):
     """
@@ -60,14 +60,14 @@ class InterpNd(object):
         idx = self._idx[..., i0:s2, :]
 
         # If running on the CPU, we need to reset the indices which would raise an exception
-        s = (Ellipsis,) + (idx.ndim - len(batch_shape)) * (tl.newaxis,)
-        idx = tl.where(mask[s], tl.zeros_like(idx), idx)
+        s = (Ellipsis,) + (idx.ndim - len(batch_shape)) * (tt.newaxis,)
+        idx = tt.where(mask[s], tt.zeros_like(idx), idx)
 
         y = []
         for v in values:
-            v = tf.gather_nd(v, idx)
-            s = (Ellipsis,) + (v.ndim - len(batch_shape)) * (tl.newaxis,)
-            v = tl.where(mask[s], tl.nan, v)
+            v = tt.gather_nd(v, idx)
+            s = (Ellipsis,) + (v.ndim - len(batch_shape)) * (tt.newaxis,)
+            v = tt.where(mask[s], tt.nan, v)
             y.append(v)
 
         # Perform the linear interpolation along the grid lines for each axis
@@ -75,9 +75,9 @@ class InterpNd(object):
             # Note, that gather returns 0 for indexes outside the valid range and
             # does not support wrap-around or negative indexes.
             idx = self._idx_ax[i]
-            idx = tl.where(mask[..., tl.newaxis], tl.zeros_like(idx), idx)
+            idx = tt.where(mask[..., tt.newaxis], tt.zeros_like(idx), idx)
 
-            xx = tl.gather(self._axes[i], idx)
+            xx = tt.gather(self._axes[i], idx)
             x0 = xx[..., i0]
             x1 = xx[..., i1]
             xi = x[..., i]
@@ -89,7 +89,7 @@ class InterpNd(object):
         vv = []
         for v in y:
             v = v[..., 0]
-            v = tl.where(mask, tl.nan, v)
+            v = tt.where(mask, tt.nan, v)
             vv.append(v)
 
         return vv
@@ -98,13 +98,13 @@ class InterpNd(object):
         """Interplate value linearly from `(x1, y1)` and `(x2, y2)` to `x`."""
         # x1, x2 and x should have the shape of (N,)
         X = (x - x1) / (x2 - x1)
-        Y = y1 + (y2 - y1) * X[..., tl.newaxis]
+        Y = y1 + (y2 - y1) * X[..., tt.newaxis]
         return Y
 
     def _digitize(self, x, ax):
-        xx = tl.reshape(x, [-1])
-        l = tl.searchsorted(ax, xx, side='right')
-        l = tl.reshape(l, x.shape)
+        xx = tt.reshape(x, [-1])
+        l = tt.searchsorted(ax, xx, side='right')
+        l = tt.reshape(l, x.shape)
         mask = (x < ax[0]) | (x >= ax[-1])
         return l, mask
 
@@ -112,7 +112,8 @@ class InterpNd(object):
         # Find bracketing indices for every item in x along axis ax
         # Indices are bracket by assuming (,] parameter intervals
         idx, mask = self._digitize(x, ax)
-        idx = tl.stack([idx - 1, idx], axis=-1)
+        idx = tt.atleast_1d(idx)
+        idx = tt.stack([idx - 1, idx], axis=-1)
         return idx, mask
 
     def _create_index(self, x):
@@ -152,13 +153,13 @@ class InterpNd(object):
 
         X = []
         for i, ax in enumerate(self._idx_ax):
-            A = tl.reshape(tf.repeat(ax, repeats=2**i, axis=-1), batch_shape + (2**(i + 1), 1))
+            A = tt.reshape(tt.repeat(ax, repeats=2**i, axis=-1), batch_shape + (2**(i + 1), 1))
             X.append(A)
         
         Q = X[0]
         for i in range(1, len(X)):
-            Q = tl.reshape(tf.repeat(Q, repeats=2, axis=-3), batch_shape + (2**(i + 1), i))
-            Q = tl.concat([Q, X[i]], axis=-1)
+            Q = tt.reshape(tt.repeat(Q, repeats=2, axis=-3), batch_shape + (2**(i + 1), i))
+            Q = tt.concat([Q, X[i]], axis=-1)
             
         self._idx = Q
 
@@ -171,10 +172,10 @@ class InterpNd(object):
         # Update the single axis index along the selected dimension
         self._idx_ax[i], self._mask_ax[i] = self._find_nearby(self._axes[i], x[..., i])
 
-        A = tl.reshape(tf.repeat(self._idx_ax[i], repeats=2**(self._dim - 1), axis=-1), batch_shape + (2**self._dim, 1))
+        A = tt.reshape(tt.repeat(self._idx_ax[i], repeats=2**(self._dim - 1), axis=-1), batch_shape + (2**self._dim, 1))
         if i == 0:
-            self._idx = tl.concat([A, self._idx[..., 1:]], axis=-1)
+            self._idx = tt.concat([A, self._idx[..., 1:]], axis=-1)
         elif i == self._dim - 1:
-            self._idx = tl.concat([self._idx[..., :-1], A], axis=-1)
+            self._idx = tt.concat([self._idx[..., :-1], A], axis=-1)
         else:
-            self._idx = tl.concat([self._idx[..., 0:i], A, self._idx[..., i + 1:]], axis=-1)
+            self._idx = tt.concat([self._idx[..., 0:i], A, self._idx[..., i + 1:]], axis=-1)

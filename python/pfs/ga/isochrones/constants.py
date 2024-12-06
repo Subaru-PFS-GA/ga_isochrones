@@ -1,4 +1,4 @@
-import tensorflow.compat.v2 as tf
+from . import tensorlib as tt
 
 class Constants():
-    TF_PRECISION = tf.float64
+    TT_PRECISION = tt.float64
