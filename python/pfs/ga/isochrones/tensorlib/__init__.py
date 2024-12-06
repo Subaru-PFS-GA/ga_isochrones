@@ -6,3 +6,7 @@ elif TENSORLIB == 'tensorflow':
     from ._tensorflow import *
 elif TENSORLIB == 'pytorch':
     from ._pytorch import *
+else:
+    raise ValueError(f'Unknown tensorlib: {TENSORLIB}')
+
+from . import random
