@@ -1,13 +1,12 @@
 import os
 
-import tensorflow.compat.v2 as tf
-
 from ..test_base import TestBase
 from pfs.ga.isochrones import Constants
 from pfs.ga.isochrones import Dartmouth
 from pfs.ga.isochrones.io import DartmouthReader
+from pfs.ga.isochrones.io.dartmouthreader import _convert_to_hsc
 
-class TestDartmouthReader(TestBase):
+class DartmouthReaderTest(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -51,8 +50,8 @@ class TestDartmouthReader(TestBase):
 
     def test_convert_to_hsc(self):
         grid = Dartmouth()
-        grid.load(os.path.join(self.ISOCHRONES_TEST, 'dartmouth_sdss.h5'), format='np')
+        grid.load(os.path.join(self.ISOCHRONES_TEST, 'dartmouth_sdss.h5'))
         
         reader = self._create_reader()
-        reader.convert_to_hsc(grid)
+        _convert_to_hsc(grid)
         grid.save(os.path.join(self.ISOCHRONES_TEST, 'dartmouth_hsc.h5'))
