@@ -136,14 +136,14 @@ class IsoGridTest(TestBase):
         # isochrones. Interpolation still should be possible since the EEP
         # range is nicely covered
 
-        Fe_H = tf.fill((1,), tf.constant(-1.75, dtype=Constants.TF_PRECISION))
-        log_t = tf.fill((1,), tf.constant(10.02, dtype=Constants.TF_PRECISION))
-        M_ini = tf.fill((1,), tf.constant(0.85, dtype=Constants.TF_PRECISION))
+        Fe_H = tt.fill((1,), tt.constant(-1.75, dtype=Constants.TF_PRECISION))
+        log_t = tt.fill((1,), tt.constant(10.02, dtype=Constants.TF_PRECISION))
+        M_ini = tt.fill((1,), tt.constant(0.85, dtype=Constants.TF_PRECISION))
 
         grid = self.load_grid()
 
         # generate index, which would normally be done by the class itself
-        x = tf.stack([Fe_H, log_t, tf.zeros_like(Fe_H)], axis=-1)
+        x = tt.stack([Fe_H, log_t, tt.zeros_like(Fe_H)], axis=-1)
         grid._ip._create_index(x)
 
         lo_EEP, hi_EEP = grid._bracket_EEP(Fe_H, log_t, M_ini)
@@ -152,60 +152,60 @@ class IsoGridTest(TestBase):
     def test_find_EEP_problematic(self):
         grid = self.load_grid()
 
-        Fe_H = tf.convert_to_tensor([0.001899077227174164, 0.014318513225709326, -1.0283096, -3.491832], dtype=Constants.TF_PRECISION)
-        log_t = tf.convert_to_tensor([9.150067065169749, 9.203306146482129, 8.350221, 8.301319], dtype=Constants.TF_PRECISION)
-        M_ini = tf.convert_to_tensor([1.2596913304062323, 1.2795316312572347, 0.41909814, 0.6158603], dtype=Constants.TF_PRECISION)
+        Fe_H = tt.convert_to_tensor([0.001899077227174164, 0.014318513225709326, -1.0283096, -3.491832], dtype=Constants.TF_PRECISION)
+        log_t = tt.convert_to_tensor([9.150067065169749, 9.203306146482129, 8.350221, 8.301319], dtype=Constants.TF_PRECISION)
+        M_ini = tt.convert_to_tensor([1.2596913304062323, 1.2795316312572347, 0.41909814, 0.6158603], dtype=Constants.TF_PRECISION)
 
         # lo_EEP = [214., 240.]
         # hi_EEP = [218., 244.]
 
         # generate index, which would normally be done by the class itself
-        x = tf.stack([Fe_H, log_t, tf.zeros_like(Fe_H)], axis=-1)
+        x = tt.stack([Fe_H, log_t, tt.zeros_like(Fe_H)], axis=-1)
         grid._ip._create_index(x)
         
         mi_EEP, mi_M_ini, mask = grid._find_EEP(Fe_H, log_t, M_ini)
-        diff = tf.abs(M_ini - mi_M_ini)
-        self.assertTrue(tf.math.reduce_max(diff) < 1.0e-5)
+        diff = tt.abs(M_ini - mi_M_ini)
+        self.assertTrue(tt.math.reduce_max(diff) < 1.0e-5)
 
     def test_interp3d_eep_problematic(self):
         grid = self.load_grid()
             
-        eep = tf.range(450, 550, dtype=Constants.TF_PRECISION)
+        eep = tt.range(450, 550, dtype=Constants.TF_PRECISION)
 
-        fe_h = tf.fill(eep.shape, grid.Fe_H[5])
-        log_t = tf.fill(eep.shape, grid.log_t[100])
-        x = tf.stack([fe_h, log_t, eep], axis=-1)
+        fe_h = tt.fill(eep.shape, grid.Fe_H[5])
+        log_t = tt.fill(eep.shape, grid.log_t[100])
+        x = tt.stack([fe_h, log_t, eep], axis=-1)
         grid._ip._create_index(x)
         [hsc_g, hsc_i] = grid._interp3d_EEP(fe_h, log_t, eep, [grid.values['hsc_g'], grid.values['hsc_i']])
-        self.assertEqual(0, tf.reduce_max(tf.math.abs(hsc_g - grid.values['hsc_g'][5, 100, 450: 550])))
+        self.assertEqual(0, tt.reduce_max(tt.math.abs(hsc_g - grid.values['hsc_g'][5, 100, 450: 550])))
         
-        fe_h = tf.fill(eep.shape, grid.Fe_H[5] - 0.125)
-        log_t = tf.fill(eep.shape, grid.log_t[100])
-        x = tf.stack([fe_h, log_t, eep], axis=-1)
+        fe_h = tt.fill(eep.shape, grid.Fe_H[5] - 0.125)
+        log_t = tt.fill(eep.shape, grid.log_t[100])
+        x = tt.stack([fe_h, log_t, eep], axis=-1)
         grid._ip._create_index(x)
         [hsc_g, hsc_i] = grid._interp3d_EEP(fe_h, log_t, eep, [grid.values['hsc_g'], grid.values['hsc_i']])
-        self.assertEqual(True, tf.reduce_all(
-            tf.math.logical_and(
-                tf.math.less(hsc_g, grid.values['hsc_g'][5, 100, 450: 550]),
-                tf.math.greater(hsc_g, grid.values['hsc_g'][4, 100, 450: 550]))))
-        self.assertEqual(True, tf.reduce_all(
-            tf.math.logical_and(
-                tf.math.less(hsc_i, grid.values['hsc_i'][5, 100, 450: 550]),
-                tf.math.greater(hsc_i, grid.values['hsc_i'][4, 100, 450: 550]))))
+        self.assertEqual(True, tt.reduce_all(
+            tt.math.logical_and(
+                tt.math.less(hsc_g, grid.values['hsc_g'][5, 100, 450: 550]),
+                tt.math.greater(hsc_g, grid.values['hsc_g'][4, 100, 450: 550]))))
+        self.assertEqual(True, tt.reduce_all(
+            tt.math.logical_and(
+                tt.math.less(hsc_i, grid.values['hsc_i'][5, 100, 450: 550]),
+                tt.math.greater(hsc_i, grid.values['hsc_i'][4, 100, 450: 550]))))
 
-        fe_h = tf.fill(eep.shape, grid.Fe_H[5])
-        log_t = tf.fill(eep.shape, grid.log_t[100] - 0.025)
-        x = tf.stack([fe_h, log_t, eep], axis=-1)
+        fe_h = tt.fill(eep.shape, grid.Fe_H[5])
+        log_t = tt.fill(eep.shape, grid.log_t[100] - 0.025)
+        x = tt.stack([fe_h, log_t, eep], axis=-1)
         grid._ip._create_index(x)
         [hsc_g, hsc_i] = grid._interp3d_EEP(fe_h, log_t, eep, [grid.values['hsc_g'], grid.values['hsc_i']])
-        self.assertEqual(True, tf.reduce_all(
-            tf.math.logical_and(
-                tf.math.greater(hsc_g, grid.values['hsc_g'][5, 99, 450: 550]),
-                tf.math.less(hsc_g, grid.values['hsc_g'][5, 100, 450: 550]))))
-        self.assertEqual(True, tf.reduce_all(
-            tf.math.logical_and(
-                tf.math.greater(hsc_i, grid.values['hsc_i'][5, 99, 450: 550]),
-                tf.math.less(hsc_i, grid.values['hsc_i'][5, 100, 450: 550]))))
+        self.assertEqual(True, tt.reduce_all(
+            tt.math.logical_and(
+                tt.math.greater(hsc_g, grid.values['hsc_g'][5, 99, 450: 550]),
+                tt.math.less(hsc_g, grid.values['hsc_g'][5, 100, 450: 550]))))
+        self.assertEqual(True, tt.reduce_all(
+            tt.math.logical_and(
+                tt.math.greater(hsc_i, grid.values['hsc_i'][5, 99, 450: 550]),
+                tt.math.less(hsc_i, grid.values['hsc_i'][5, 100, 450: 550]))))
 
         pass
         
@@ -214,9 +214,9 @@ class IsoGridTest(TestBase):
     def test_interp3d_ordering(self):
         grid = self.load_grid()
 
-        M_ini = tf.linspace(tf.constant(0.4, dtype=Constants.TF_PRECISION), tf.constant(0.8, dtype=Constants.TF_PRECISION), 100)
-        fe_h = tf.fill(M_ini.shape, grid.Fe_H[5])
-        log_t = tf.fill(M_ini.shape, grid.log_t[100])
+        M_ini = tt.linspace(tt.constant(0.4, dtype=Constants.TF_PRECISION), tt.constant(0.8, dtype=Constants.TF_PRECISION), 100)
+        fe_h = tt.fill(M_ini.shape, grid.Fe_H[5])
+        log_t = tt.fill(M_ini.shape, grid.log_t[100])
 
         eep, [hsc_g, hsc_i] = grid.interp3d(fe_h, log_t, M_ini, [grid.values['hsc_g'], grid.values['hsc_i']])
 
@@ -228,41 +228,41 @@ class IsoGridTest(TestBase):
         # These cases are at the edge of the MIST isochrones dues to very high
         # age log t > 9.3. The solution is to mark extrapolations with a NaN
 
-        Fe_H = tf.convert_to_tensor([-3.1474695, -4.0014763, -3.1543455, -3.2279196, -3.9314253,
+        Fe_H = tt.convert_to_tensor([-3.1474695, -4.0014763, -3.1543455, -3.2279196, -3.9314253,
                                      -3.2643065, -3.1226394, -3.253033, -3.2979946, -3.1741328], dtype=Constants.TF_PRECISION)
-        log_t = tf.convert_to_tensor([9.309808, 9.263662, 9.309559, 9.338262, 9.300449, 9.307342,
+        log_t = tt.convert_to_tensor([9.309808, 9.263662, 9.309559, 9.338262, 9.300449, 9.307342,
                                       9.303298, 9.3072605, 9.322571, 9.313253], dtype=Constants.TF_PRECISION)
-        M_ini = tf.convert_to_tensor([1.3958763, 1.3805327, 1.383056 , 1.3865354, 1.3958708, 1.3992141,
+        M_ini = tt.convert_to_tensor([1.3958763, 1.3805327, 1.383056 , 1.3865354, 1.3958708, 1.3992141,
                                       1.3874997, 1.3892338, 1.3959047, 1.3907031], dtype=Constants.TF_PRECISION)
 
         eep, [hsc_g, hsc_r] = grid.interp3d(Fe_H, log_t, M_ini, [grid.values['hsc_g'], grid.values['hsc_r']])
 
-        self.assertEqual(10, tf.reduce_sum(tf.cast(tf.math.is_nan(hsc_g), tf.int32)))
-        self.assertEqual(10, tf.reduce_sum(tf.cast(tf.math.is_nan(hsc_r), tf.int32)))
+        self.assertEqual(10, tt.reduce_sum(tt.cast(tt.math.is_nan(hsc_g), tt.int32)))
+        self.assertEqual(10, tt.reduce_sum(tt.cast(tt.math.is_nan(hsc_r), tt.int32)))
 
     def test_interp3d_problematic_end_of_MS(self):
         grid = self.load_grid()
 
         # There result in MS stars with too small mass
 
-        Fe_H = tf.convert_to_tensor([-3.2 ], dtype=Constants.TF_PRECISION)
-        log_t = tf.convert_to_tensor([9.1], dtype=Constants.TF_PRECISION)
-        M_ini = tf.convert_to_tensor([1.65], dtype=Constants.TF_PRECISION)
+        Fe_H = tt.convert_to_tensor([-3.2 ], dtype=Constants.TF_PRECISION)
+        log_t = tt.convert_to_tensor([9.1], dtype=Constants.TF_PRECISION)
+        M_ini = tt.convert_to_tensor([1.65], dtype=Constants.TF_PRECISION)
 
         eep, [hsc_g, hsc_r] = grid.interp3d(Fe_H, log_t, M_ini, [grid.values['hsc_g'], grid.values['hsc_r']])
 
-        self.assertEqual(1, tf.reduce_sum(tf.cast(tf.math.is_nan(hsc_g), tf.int32)))
-        self.assertEqual(1, tf.reduce_sum(tf.cast(tf.math.is_nan(hsc_r), tf.int32)))
+        self.assertEqual(1, tt.reduce_sum(tt.cast(tt.math.is_nan(hsc_g), tt.int32)))
+        self.assertEqual(1, tt.reduce_sum(tt.cast(tt.math.is_nan(hsc_r), tt.int32)))
 
     def test_interp3d_problematic_middle(self):
         grid = self.load_grid()
 
-        Fe_H = tf.convert_to_tensor([-3.9], dtype=Constants.TF_PRECISION)
-        log_t = tf.convert_to_tensor([10.0], dtype=Constants.TF_PRECISION)
-        M_ini = tf.convert_to_tensor([0.860], dtype=Constants.TF_PRECISION)
+        Fe_H = tt.convert_to_tensor([-3.9], dtype=Constants.TF_PRECISION)
+        log_t = tt.convert_to_tensor([10.0], dtype=Constants.TF_PRECISION)
+        M_ini = tt.convert_to_tensor([0.860], dtype=Constants.TF_PRECISION)
 
         eep, [hsc_g, hsc_r] = grid.interp3d(Fe_H, log_t, M_ini, [grid.values['hsc_g'], grid.values['hsc_r']])
 
-        self.assertEqual(1, tf.reduce_sum(tf.cast(tf.math.is_nan(hsc_g), tf.int32)))
-        self.assertEqual(1, tf.reduce_sum(tf.cast(tf.math.is_nan(hsc_r), tf.int32)))
+        self.assertEqual(1, tt.reduce_sum(tt.cast(tt.math.is_nan(hsc_g), tt.int32)))
+        self.assertEqual(1, tt.reduce_sum(tt.cast(tt.math.is_nan(hsc_r), tt.int32)))
 """

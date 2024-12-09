@@ -32,6 +32,9 @@ def cpu(data):
 
 cast = tf.cast
 
+def istensor(data):
+    return isinstance(data, tf.Tensor)
+
 def shape(data):
     return data.shape
 

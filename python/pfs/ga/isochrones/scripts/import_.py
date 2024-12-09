@@ -67,7 +67,7 @@ class Import(Script):
 
         self.create_output_dir(self._outdir)
         self.init_logging(self._outdir)
-        self.init_tensorflow()
+        self.init_tensorlib()
 
     def run(self):
         self._reader.run()

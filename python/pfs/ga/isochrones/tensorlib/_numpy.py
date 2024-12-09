@@ -20,6 +20,9 @@ def cpu(data):
 def cast(data, dtype):
     return data.astype(dtype)
 
+def istensor(data):
+    return isinstance(data, np.ndarray)
+
 shape = np.shape
 size = np.size
 ndim = np.ndim

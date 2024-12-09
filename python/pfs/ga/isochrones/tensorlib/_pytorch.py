@@ -20,6 +20,9 @@ def cast(data, dtype):
 def cpu(data):
     return data.detach().cpu().numpy()
 
+def istensor(data):
+    return isinstance(data, torch.Tensor)
+
 def shape(data):
     return data.shape
 
