@@ -61,7 +61,7 @@ class InterpNdTest(TestBase):
         def interpNd(Fe_H):
             #Fe_H = tt.random.uniform(log_t.shape, grid.Fe_H[0] + 0.01, grid.Fe_H[-1], dtype=Constants.TT_PRECISION)
             #EEP = tt.random.uniform(log_t.shape, 202.0, 605.0, dtype=Constants.TT_PRECISION)
-            #Fe_H = tt.fill(Fe_H.shape, -0.125, dtype=Constants.TT_PRECISION)
+            #Fe_H = tt.full(Fe_H.shape, -0.125, dtype=Constants.TT_PRECISION)
             log_t = tt.full(Fe_H.shape, 8.5, dtype=Constants.TT_PRECISION)
             EEP = tt.full(Fe_H.shape, 202.4, dtype=Constants.TT_PRECISION)
 
