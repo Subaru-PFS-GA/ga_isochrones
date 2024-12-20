@@ -1,25 +1,23 @@
 import h5py
 import numpy as np
 from numbers import Number
-import tensorflow.compat.v2 as tf
-from tensorflow.python.framework.ops import EagerTensor
+
+from .. import tensorlib as tt
 
 #region HDF5 utility functions
 
 def to_numpy(data):
-    if isinstance(data, EagerTensor):
-        data = data.numpy()
+    if tt.istensor(data):
+        data = tt.cpu(data)
     return data
 
 def merge_tensors(a, b, axis=0):
-    if isinstance(a, EagerTensor) and isinstance(b, EagerTensor):
-        r = tf.stack([a, b], axis=axis)
-    elif isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
-        r = np.concatenate([a, b], axis=axis)
+    if tt.istensor(a) and tt.istensor(b):
+        r = tt.stack([a, b], axis=axis)
     elif isinstance(a, Number) and isinstance(b, Number):
         r = a
     else:
-        raise TypeError("Merged types much match.")
+        raise TypeError("Merged types must match.")
     return r
 
 def merge_dict(a, b, axis=0):
@@ -76,19 +74,19 @@ def append_data_h5(grp, name, data):
         ds.resize(tuple(newshape))
         ds[tuple(newslice)] = data
 
-def load_dict_h5(grp, format='tf'):
-    # Load a dictionary from a HDF5 file, either as numpy arrays or TF tensors
+def load_dict_h5(grp, format='tt'):
+    # Load a dictionary from a HDF5 file, either as numpy arrays or gpu tensors
     d = {}
     for k in grp:
         d[k] = load_data_h5(grp, k, format=format)
     return d
 
-def load_data_h5(grp, name, format='tf'):
-    # load an array from a HDF5 file as a numpy array or a TF tensor
+def load_data_h5(grp, name, format='tt'):
+    # load an array from a HDF5 file as a numpy array or a gpu tensor
     if name in grp:
         data = grp[name][()]
-        if format == 'tf':
-            data = tf.convert_to_tensor(data)
+        if format == 'tt':
+            data = tt.tensor(data)
         elif format == 'np':
             pass
         else:

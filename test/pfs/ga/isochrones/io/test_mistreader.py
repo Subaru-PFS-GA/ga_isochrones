@@ -1,13 +1,11 @@
 import os
 
-import tensorflow.compat.v2 as tf
-
 from ..test_base import TestBase
 from pfs.ga.isochrones import Constants
 from pfs.ga.isochrones import MIST
 from pfs.ga.isochrones.io import MISTReader
 
-class TestMISTReader(TestBase):
+class MISTReaderTest(TestBase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

@@ -1,14 +1,15 @@
 import h5py as h5
 
 import numpy as np
-import tensorflow.compat.v2 as tf
 
+from . import tensorlib as tt
 from .constants import Constants
 from .interpnd import InterpNd
 
 class Grid(object):
-    def __init__(self, dtype=Constants.TF_PRECISION):
+    def __init__(self, dtype=Constants.TT_PRECISION, device=None):
         self._dtype = dtype
+        self._device = device
         self._axes = None
         self._values = None
 
@@ -21,8 +22,8 @@ class Grid(object):
         return self._values
 
 class IsoGrid(Grid):
-    def __init__(self, dtype=Constants.TF_PRECISION):
-        super(IsoGrid, self).__init__(dtype=dtype)
+    def __init__(self, dtype=Constants.TT_PRECISION, device=None):
+        super(IsoGrid, self).__init__(dtype=dtype, device=device)
         self._ip = None
 
     @property
@@ -41,7 +42,7 @@ class IsoGrid(Grid):
     def M_ini(self):
         return self._values['M_ini']
 
-    def load(self, filename, format='tf'):
+    def load(self, filename):
         with h5.File(filename, 'r') as f:
             # Loading order of axes does matter
             axes = ['Fe_H', 'log_t', 'EEP']
@@ -51,15 +52,9 @@ class IsoGrid(Grid):
             grp = f['isochrones']['values']
             self._values = {k: grp[k][:] for k in grp}
 
-        if format == 'np':
-            pass
-        elif format == 'tf':
-            # Force allocation on the device, otherwise a copy will occur every
-            # time the arrays are accessed
-            self._axes = {k: tf.identity(tf.convert_to_tensor(self._axes[k], dtype=self._dtype)) for k in self._axes}
-            self._values = {k: tf.identity(tf.convert_to_tensor(self._values[k], dtype=self._dtype)) for k in self._values}
-        else:
-            raise NotImplementedError()
+        # Force allocation on the device
+        self._axes = {k: tt.tensor(self._axes[k], dtype=self._dtype, device=self._device) for k in self._axes}
+        self._values = {k: tt.tensor(self._values[k], dtype=self._dtype, device=self._device) for k in self._values}
 
         # Use interpnd's implementation to bracket all parameters
         self._ip = InterpNd([self.Fe_H, self.log_t, self.EEP])
@@ -80,29 +75,25 @@ class IsoGrid(Grid):
                 grp_values.create_dataset(k, data=self._values[k])
 
     def _find_limits(self):
+        # Some isochrones don't start at EEP=0 and don't end at EEP=1. These
+        # are marked with -inf and inf, respectively, in the M_ini field.
+        # Count the number of infs in the M_ini field to find the minimum and maximum
+        # EEP values along each isochrone.
+
         # Find absolute minimum and maximum EEP and M_ini along every isochrone
-        
-        mask = tf.cast(tf.math.logical_not(tf.greater(self.M_ini, tf.constant(-np.inf, dtype=self._dtype))), tf.int32)
-        
-        # TODO: test if it's true, it's more likely we just need to slightly increare the
-        #       lower limit but not by a whole step (it's float)
+        mask = tt.cast(~(self.M_ini > -tt.inf), tt.int32)
+        self._lo_idx = tt.sum(mask, axis=-1)
+        self._lo_EEP = tt.gather(self.EEP, self._lo_idx)
 
-        # lo_EEP is incremented by one because the interpolation library handles open
-        # lower and closed upper limits.
-        # idx = tf.reduce_sum(mask, axis=-1) + tf.constant(1, dtype=tf.int32)
-
-        idx = tf.reduce_sum(mask, axis=-1)
-        self._lo_EEP = tf.gather(self.EEP, idx)
-
-        mask = tf.cast(tf.less(self.M_ini, tf.constant(np.inf, dtype=self._dtype)), tf.int32)
-        idx = tf.reduce_sum(mask, axis=-1) - tf.constant(1, dtype=tf.int32)
-        self._hi_EEP = tf.gather(self.EEP, idx)
+        mask = tt.cast((self.M_ini < tt.inf), tt.int32)
+        self._hi_idx = tt.sum(mask, axis=-1) - 1
+        self._hi_EEP = tt.gather(self.EEP, self._hi_idx)
 
     def _interp3d_EEP(self, Fe_H, log_t, EEP, values, update_index=True):
         # Interpolate in 3D, parallel to grid lines only.
         # This function optionally updates the index in the EEP direction to
         # allow caching of Fe_H and log_t directions.
-        x = tf.stack([Fe_H, log_t, EEP], axis=-1)
+        x = tt.stack([Fe_H, log_t, EEP], axis=-1)
         if self._ip._idx is None:
             self._ip._create_index(x)
         elif update_index:
@@ -118,8 +109,8 @@ class IsoGrid(Grid):
         # are outside, so take max of lower limits and min of upper limits.
         # Here we assume 3 dimensions (Fe_H, log_t, EEP) and the constant range 0:2 refer to
         # the indexes along dimensions Fe_H and log_t - we ignore the bracketing in the EEP direction
-        lo_EEP = tf.math.reduce_max(tf.gather_nd(self._lo_EEP, self._ip._idx[..., 0:4, 0:2]), axis=-1)
-        hi_EEP = tf.math.reduce_min(tf.gather_nd(self._hi_EEP, self._ip._idx[..., 0:4, 0:2]), axis=-1)
+        lo_EEP = tt.max(tt.gather_nd(self._lo_EEP, self._ip._idx[..., 0:4, 0:2]), axis=-1)
+        hi_EEP = tt.min(tt.gather_nd(self._hi_EEP, self._ip._idx[..., 0:4, 0:2]), axis=-1)
         return lo_EEP, hi_EEP
 
     def _find_EEP(self, Fe_H, log_t, M_ini, tolerance=1e-3):
@@ -175,28 +166,20 @@ class IsoGrid(Grid):
             #       grid cell and avoid another reverse index lookup
             #       but this doesn't seem to happen for at least some of the stars
             [mi_M_ini] = self._interp3d_EEP(Fe_H, log_t, mi_EEP, [self.M_ini])
-            # mi_EEP_idx = self._ip._idx[..., 2]
 
             c = (mi_M_ini < M_ini)
-            lo_EEP = tf.where(c, mi_EEP, lo_EEP)
-            # lo_EEP_idx = tf.where(c[..., tf.newaxis], mi_EEP_idx, lo_EEP_idx)
-            hi_EEP = tf.where(c, hi_EEP, mi_EEP)
-            # hi_EEP_idx = tf.where(c[..., tf.newaxis], hi_EEP_idx, mi_EEP_idx)
-
-            # Test if we're already bracketed into a single EEP bin
-            # for all unmasked stars
-            #tf.math.reduce_max(tf.where(mask[..., tf.newaxis], 0, hi_EEP_idx - lo_EEP_idx))
-            #tf.where(tf.where(mask[..., tf.newaxis], 0, hi_EEP_idx - lo_EEP_idx) > 0)
+            lo_EEP = tt.where(c, mi_EEP, lo_EEP)
+            hi_EEP = tt.where(c, hi_EEP, mi_EEP)
 
             # Verify the convergence
-            delta = tf.math.abs(M_ini - mi_M_ini)
+            delta = tt.abs(M_ini - mi_M_ini)
             bad = ((delta > tolerance) & ~mask)
-            bad_count = tf.reduce_sum(tf.cast(bad, tf.int32)).numpy()
+            bad_count = tt.cpu(tt.sum(tt.cast(bad, tt.int32)))
 
             q += 1
 
         # Also mask values that are nan
-        mask = mask | tf.math.is_nan(mi_M_ini)
+        mask = mask | tt.isnan(mi_M_ini)
 
         return mi_EEP, mi_M_ini, mask
         
@@ -205,14 +188,13 @@ class IsoGrid(Grid):
 
         # This is an implicit interpolation
         
-        x = tf.stack([Fe_H, log_t, tf.zeros_like(M_ini)], axis=-1)
+        x = tt.stack([Fe_H, log_t, tt.zeros_like(M_ini)], axis=-1)
         self._ip._create_index(x)
         mi_EEP, mi_M_ini, mask = self._find_EEP(Fe_H, log_t, M_ini)
         res = self._interp3d_EEP(Fe_H, log_t, mi_EEP, values, update_index=update_index)
         
         # Set masked results to nan, this means that we are trying to extrapolate out from the grid
-        nan = tf.constant([np.nan], dtype=self._dtype)
-        res = [tf.where(mask, nan, v) for v in res]
+        res = [tt.where(mask, tt.nan, v) for v in res]
         return mi_EEP, mi_M_ini, res, mask
 
     def interp3d_EEP(self, Fe_H, log_t, EEP, values):
@@ -220,7 +202,7 @@ class IsoGrid(Grid):
 
         # This a single forward interpolation
 
-        x = tf.stack([Fe_H, log_t, EEP], axis=-1)
+        x = tt.stack([Fe_H, log_t, EEP], axis=-1)
         self._ip._create_index(x)
         
         # Append M_ini to the list of interpolated values
@@ -233,6 +215,6 @@ class IsoGrid(Grid):
         M_ini = res[-1]
         del res[-1]
         
-        mask = tf.math.is_inf(M_ini)
-        res = [tf.where(mask, np.nan, v) for v in res]
+        mask = tt.isinf(M_ini)
+        res = [tt.where(mask, tt.nan, v) for v in res]
         return EEP, M_ini, res, mask

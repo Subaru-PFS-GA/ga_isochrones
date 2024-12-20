@@ -24,7 +24,7 @@ class Script():
         self.args = None
         self.unknown_args = None
         self.debug = False
-        self.tf_profile = False
+        self.tt_profile = False
         self.random_seed = None
         self.logging = logging
         self.log_level = None
@@ -102,8 +102,8 @@ class Script():
             # Parse some special but generic arguments
             if 'debug' in self.args and self.args['debug']:
                 self.debug = True
-            if 'tf_profile' in self.args and self.args['tf_profile']:
-                self.tf_profile = True
+            if 'tt_profile' in self.args and self.args['tt_profile']:
+                self.tt_profile = True
             if 'log_level' in self.args and self.args['log_level'] is not None:
                 self.log_level = self.args['log_level']
             if 'random_seed' in self.args and self.args['random_seed'] is not None:
@@ -295,24 +295,26 @@ class Script():
             self.dump_env(os.path.join(outdir, 'env.sh'))
             self.dump_args_json(os.path.join(outdir, 'args.json'))
 
-    def init_tensorflow(self):
-        tf.enable_v2_behavior()
-        gpus = tf.config.list_physical_devices('GPU') 
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logging.info('Initialized {} GPUs.'.format(len(gpus)))
+    def init_tensorlib(self):
+        # TODO: Initialization is now done inside tensorlib
+        #       To report GPUs, implement a function in tensorlib
+        # logging.info('Initialized {} GPUs.'.format(len(gpus)))
+
+        pass
 
     def init_profiler(self):
         logging.info('Starting up the TensorFlow profiler.')
         profiler.warmup()
 
     def start_profiler(self):
-        if self.tf_profile:
+        if self.tt_profile:
+            # TODO: Implement library specifict profiling in tensorlib
+            raise NotImplementedError()
             options = tf.profiler.experimental.ProfilerOptions(python_tracer_level=1)
             profiler.start(logdir=self._outdir, options=options)
 
     def stop_profiler(self):
-        if self.tf_profile:
+        if self.tt_profile:
             profiler.stop()
             logging.info('Stopped TensorFlow profiler.')
 

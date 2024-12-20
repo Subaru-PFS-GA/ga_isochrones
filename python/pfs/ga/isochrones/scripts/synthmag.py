@@ -153,7 +153,7 @@ class SynthMag(Script):
 
         self.create_output_dir(self._outdir)
         self.init_logging(self._outdir)
-        self.init_tensorflow()
+        self.init_tensorlib()
 
         self.load_isogrid()
         self.load_specgrid()
